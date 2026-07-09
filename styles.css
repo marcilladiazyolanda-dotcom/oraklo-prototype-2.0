@@ -521,6 +521,17 @@ h3 {
   font-weight: 760;
 }
 
+.trend-empty-note {
+  margin: -3px 0 8px;
+  color: var(--gold);
+  font-size: 0.86rem;
+  font-weight: 760;
+}
+
+.trend-card-empty .trend-bar {
+  opacity: 0.78;
+}
+
 .trend-row {
   display: flex;
   justify-content: space-between;
@@ -615,7 +626,7 @@ h3 {
   font-size: 1.45rem;
 }
 
-.demo-note {
+.prototype-note {
   margin: 6px 0 0;
   color: var(--subtle);
   font-size: 0.86rem;
@@ -882,6 +893,25 @@ h3 {
   color: var(--muted);
 }
 
+.activity-metrics {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.activity-metrics span {
+  display: block;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.activity-metrics strong {
+  color: var(--text);
+}
+
 .empty-state {
   margin: 18px 0 0;
   padding: 18px;
@@ -936,8 +966,31 @@ h3 {
 
 .modal-actions {
   display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
   justify-content: flex-end;
   margin-top: 22px;
+}
+
+.modal-actions .primary-button,
+.modal-actions .secondary-button {
+  width: auto;
+  margin-top: 0;
+}
+
+.modal-check {
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  margin: 4px auto 14px;
+  border: 1px solid rgba(94, 224, 160, 0.5);
+  border-radius: 50%;
+  color: #06110c;
+  background: linear-gradient(135deg, var(--green), #8bf4c1);
+  box-shadow: 0 0 34px rgba(94, 224, 160, 0.35);
+  font-size: 2rem;
+  font-weight: 900;
 }
 
 .auth-modal {
@@ -1324,6 +1377,17 @@ h3 {
 
 .detail-card {
   padding: 18px;
+}
+
+.market-empty-note,
+.comments-placeholder {
+  margin: 14px 0 0;
+  padding: 12px;
+  border: 1px solid rgba(240, 196, 107, 0.25);
+  border-radius: 8px;
+  color: #f7db9b;
+  background: rgba(240, 196, 107, 0.075);
+  font-size: 0.92rem;
 }
 
 .detail-stat-grid {

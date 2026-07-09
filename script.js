@@ -18,7 +18,8 @@ const stateFilters = [
 ];
 
 let markets = [];
-const seasonRankingUsers = [];
+let seasonRankingUsers = [];
+let publicActivity = null;
 
 const activeFilters = {
   category: "Todos",
@@ -33,12 +34,13 @@ const resultCountNode = document.querySelector("#result-count");
 const emptyStateNode = document.querySelector("#empty-state");
 const featuredMarketNode = document.querySelector("#featured-market");
 const leaderboardPanelNode = document.querySelector("#leaderboard-panel");
+const activityPanelNode = document.querySelector("#public-activity-panel");
 const dataSourceWarningNode = document.querySelector("#data-source-warning");
 const searchInput = document.querySelector("#market-search");
 const clearButton = document.querySelector("#clear-filters");
 
 function formatNumber(value) {
-  return new Intl.NumberFormat("es-ES").format(value);
+  return new Intl.NumberFormat("es-ES").format(Number(value) || 0);
 }
 
 function normalizeText(value) {
@@ -46,6 +48,11 @@ function normalizeText(value) {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
+}
+
+function toNumber(value, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
 }
 
 function getMarketUrl(market) {
@@ -93,18 +100,61 @@ async function loadMarketsFromSupabase() {
     throw new Error("Supabase no está disponible.");
   }
 
-  const { data, error } = await window.orakloSupabase
-    .from("markets")
-    .select("*")
-    .order("highlighted", { ascending: false })
-    .order("popularity", { ascending: false })
-    .order("created_at", { ascending: false });
+  const { data, error } = await window.orakloSupabase.rpc("get_public_markets");
 
   if (error) {
     throw error;
   }
 
   return (data || []).map(window.mapMarketFromSupabase);
+}
+
+function mapLeaderboardUser(row) {
+  return {
+    id: row.id || row.user_id || row.profile_id || row.username,
+    username: row.username || row.display_name || "@Usuario",
+    prestigio: toNumber(row.prestige ?? row.prestigio),
+    rango: row.rank || row.rango || "Observador",
+    mejorCategoria: row.best_category || row.mejor_categoria || "Pendiente"
+  };
+}
+
+async function loadLeaderboardFromSupabase() {
+  if (!window.orakloSupabase) {
+    throw new Error("Supabase no está disponible.");
+  }
+
+  const { data, error } = await window.orakloSupabase.rpc("get_public_leaderboard", {
+    limit_count: 10
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data || []).map(mapLeaderboardUser).filter((user) => user.prestigio > 0);
+}
+
+function mapPublicActivity(row) {
+  return {
+    registeredUsers: toNumber(row?.registered_users),
+    activePredictions: toNumber(row?.active_predictions),
+    openMarkets: toNumber(row?.open_markets)
+  };
+}
+
+async function loadActivityFromSupabase() {
+  if (!window.orakloSupabase) {
+    throw new Error("Supabase no está disponible.");
+  }
+
+  const { data, error } = await window.orakloSupabase.rpc("get_public_activity");
+
+  if (error) {
+    throw error;
+  }
+
+  return mapPublicActivity(Array.isArray(data) ? data[0] : data);
 }
 
 function getFilteredMarkets() {
@@ -154,14 +204,20 @@ function getFilteredMarkets() {
 }
 
 function createTrendMarkup(market) {
+  const hasPredictions = market.tienePredicciones !== false && market.prediccionesReales > 0;
+  const label = hasPredictions
+    ? `Tendencia: Sí ${market.porcentajeSi} por ciento, No ${market.porcentajeNo} por ciento`
+    : "Sin predicciones todavía. Barra neutral al 50 por ciento para Sí y No.";
+
   return `
-    <div class="trend-card">
+    <div class="trend-card${hasPredictions ? "" : " trend-card-empty"}">
       <p class="trend-title">Tendencia actual</p>
+      ${hasPredictions ? "" : '<p class="trend-empty-note">Sin predicciones todavía</p>'}
       <div class="trend-row">
         <span>Sí ${market.porcentajeSi}%</span>
         <span>No ${market.porcentajeNo}%</span>
       </div>
-      <div class="trend-bar" style="--yes: ${market.porcentajeSi}%; --no: ${market.porcentajeNo}%;" role="img" aria-label="Tendencia: Sí ${market.porcentajeSi} por ciento, No ${market.porcentajeNo} por ciento">
+      <div class="trend-bar" style="--yes: ${market.porcentajeSi}%; --no: ${market.porcentajeNo}%;" role="img" aria-label="${label}">
         <span class="trend-yes"></span>
         <span class="trend-no"></span>
       </div>
@@ -179,7 +235,7 @@ function createMarketCard(market) {
     </div>
     <h3>${market.pregunta}</h3>
     ${createTrendMarkup(market)}
-    <div class="market-stats-line" aria-label="Datos de actividad del mercado">
+    <div class="market-stats-line" aria-label="Datos reales de actividad del mercado">
       <span class="difficulty ${getDifficultyClass(market.dificultad)}">Dificultad: ${market.dificultad}</span>
       <span class="metric metric-karma">${formatNumber(market.karmaTotal)} Karma</span>
       <span class="metric metric-users">${formatNumber(market.participantes)} participantes</span>
@@ -195,7 +251,7 @@ function createMarketCard(market) {
 }
 
 function getUserProfileUrl(user) {
-  return `profile.html?user=${encodeURIComponent(user.username)}`;
+  return `profile.html?user=${encodeURIComponent(user.id || user.username)}`;
 }
 
 function createLeaderboardRow(user, index) {
@@ -226,8 +282,8 @@ function renderLeaderboard() {
           <span class="placeholder-line"></span>
           <span class="placeholder-line"></span>
         </div>
-        <strong>Aún no hay predictores clasificados</strong>
-        <p>El ranking se activará cuando se resuelvan los primeros mercados.</p>
+        <strong>Aún no hay ranking competitivo</strong>
+        <p>El ranking se activará cuando se resuelvan mercados y haya Prestigio real.</p>
       </div>
     `;
     return;
@@ -239,6 +295,42 @@ function renderLeaderboard() {
     list.appendChild(createLeaderboardRow(user, index));
   });
   leaderboardPanelNode.appendChild(list);
+}
+
+function renderActivity() {
+  if (!activityPanelNode) return;
+
+  if (!publicActivity) {
+    activityPanelNode.innerHTML = `
+      <p class="eyebrow">Actividad</p>
+      <h2>Ahora en Oraklo</h2>
+      <p>Conectando con la actividad pública de Supabase...</p>
+    `;
+    return;
+  }
+
+  if (publicActivity.activePredictions === 0) {
+    activityPanelNode.innerHTML = `
+      <p class="eyebrow">Actividad</p>
+      <h2>Ahora en Oraklo</h2>
+      <p>Todavía no hay actividad predictiva registrada.</p>
+      <div class="activity-metrics" aria-label="Métricas públicas">
+        <span>${formatNumber(publicActivity.registeredUsers)} usuarios registrados</span>
+        <span>${formatNumber(publicActivity.openMarkets)} mercados abiertos</span>
+      </div>
+    `;
+    return;
+  }
+
+  activityPanelNode.innerHTML = `
+    <p class="eyebrow">Actividad</p>
+    <h2>Ahora en Oraklo</h2>
+    <div class="activity-metrics" aria-label="Métricas públicas">
+      <span><strong>${formatNumber(publicActivity.registeredUsers)}</strong> usuarios registrados</span>
+      <span><strong>${formatNumber(publicActivity.activePredictions)}</strong> predicciones activas</span>
+      <span><strong>${formatNumber(publicActivity.openMarkets)}</strong> mercados abiertos</span>
+    </div>
+  `;
 }
 
 function renderFilterButtons() {
@@ -288,7 +380,7 @@ function renderFeaturedMarket() {
           <span class="status ${getStatusClass(market.estado)}">${market.estado}</span>
         </div>
         <h2 class="featured-question">${market.pregunta}</h2>
-        <p class="featured-copy">Un mercado de alta actividad para medir criterio, anticipación y lectura del calendario de la industria.</p>
+        <p class="featured-copy">Mercado de prueba conectado a métricas reales de Supabase para medir criterio, anticipación y lectura del calendario de la industria.</p>
       </div>
       <div>
         ${createTrendMarkup(market)}
@@ -320,6 +412,7 @@ function renderMarkets() {
 function renderLoadingState() {
   renderFilterButtons();
   renderLeaderboard();
+  renderActivity();
   featuredMarketNode.hidden = true;
   resultCountNode.textContent = "";
   emptyStateNode.hidden = true;
@@ -331,6 +424,7 @@ function render() {
   renderFeaturedMarket();
   renderMarkets();
   renderLeaderboard();
+  renderActivity();
 }
 
 clearButton.addEventListener("click", () => {
@@ -350,13 +444,22 @@ searchInput.addEventListener("input", (event) => {
 async function initializeMarkets() {
   renderLoadingState();
 
-  try {
-    markets = await loadMarketsFromSupabase();
+  const [marketsResult, leaderboardResult, activityResult] = await Promise.allSettled([
+    loadMarketsFromSupabase(),
+    loadLeaderboardFromSupabase(),
+    loadActivityFromSupabase()
+  ]);
+
+  if (marketsResult.status === "fulfilled") {
+    markets = marketsResult.value;
     setDataSourceWarning("");
-  } catch (error) {
+  } else {
     markets = getFallbackMarkets();
-    setDataSourceWarning("No se han podido cargar los mercados desde Supabase. Mostrando datos demo.");
+    setDataSourceWarning("No se han podido cargar los mercados desde Supabase. Mostrando mercados de prueba locales.");
   }
+
+  seasonRankingUsers = leaderboardResult.status === "fulfilled" ? leaderboardResult.value : [];
+  publicActivity = activityResult.status === "fulfilled" ? activityResult.value : null;
 
   render();
 }

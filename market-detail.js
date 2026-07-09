@@ -1,4 +1,4 @@
-const demoUser = window.ORAKLO_DEMO_USER || {
+const fallbackUser = window.ORAKLO_DEMO_USER || {
   username: "@Usuario",
   karma: 1000,
   prestigio: 0,
@@ -7,10 +7,12 @@ const demoUser = window.ORAKLO_DEMO_USER || {
 
 const detailRoot = document.querySelector("#market-detail-root");
 const predictionModal = document.querySelector("#prediction-modal");
+const predictionModalCheck = document.querySelector("#prediction-modal-check");
 const predictionModalEyebrow = document.querySelector("#prediction-modal .eyebrow");
 const predictionModalTitle = document.querySelector("#prediction-modal-title");
 const predictionModalSummary = document.querySelector("#prediction-modal-description");
 const predictionModalWarning = document.querySelector("#prediction-modal .prototype-warning");
+const predictionModalPrimary = document.querySelector("#prediction-modal-primary");
 const predictionModalClose = document.querySelector("#prediction-modal-close");
 const predictionModalOk = document.querySelector("#prediction-modal-ok");
 
@@ -41,32 +43,14 @@ const prestigeTable = {
   "Épica": { hit: 100, miss: -15 }
 };
 
-const demoComments = [
-  {
-    user: "@AnalistaPixel",
-    text: "La clave aquí es distinguir rumor de confirmación oficial. Sin fuente primaria no debería resolverse como Sí.",
-    reaction: "Buen análisis"
-  },
-  {
-    user: "@FramePerfecto",
-    text: "Conviene mirar el historial de anuncios: muchas compañías publican primero en blog oficial y después en redes.",
-    reaction: "Fuente útil"
-  },
-  {
-    user: "@LoreTracker",
-    text: "Mercado interesante porque obliga a leer fecha, criterio y fuente antes de participar.",
-    reaction: "Criterio claro"
-  }
-];
-
 let detailDataWarning = "";
 
 function formatNumber(value) {
-  return new Intl.NumberFormat("es-ES").format(value);
+  return new Intl.NumberFormat("es-ES").format(Number(value) || 0);
 }
 
 function formatKarma(value) {
-  return `${formatNumber(Math.round(value))} Karma`;
+  return `${formatNumber(Math.round(Number(value) || 0))} Karma`;
 }
 
 function getQueryMarketId() {
@@ -77,22 +61,44 @@ function getFallbackMarkets() {
   return Array.isArray(window.ORAKLO_MARKETS) ? window.ORAKLO_MARKETS : [];
 }
 
+function getDisplayUser() {
+  const authProfile = window.orakloAuth?.getState?.().profile;
+
+  return {
+    karma: Number(authProfile?.karma ?? fallbackUser.karma),
+    prestige: Number(authProfile?.prestige ?? fallbackUser.prestigio ?? 0),
+    rank: authProfile?.rank || fallbackUser.rango || "Observador"
+  };
+}
+
+function normalizeRpcMarket(data) {
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row || typeof window.mapMarketFromSupabase !== "function") {
+    return null;
+  }
+
+  return window.mapMarketFromSupabase(row);
+}
+
 async function loadMarketFromSupabase(marketId) {
   if (!window.orakloSupabase || typeof window.mapMarketFromSupabase !== "function") {
     throw new Error("Supabase no está disponible.");
   }
 
-  const { data, error } = await window.orakloSupabase
-    .from("markets")
-    .select("*")
-    .eq("id", marketId)
-    .single();
+  const { data, error } = await window.orakloSupabase.rpc("get_public_market_by_id", {
+    market_id_input: marketId
+  });
 
   if (error) {
     throw error;
   }
 
-  return window.mapMarketFromSupabase(data);
+  const market = normalizeRpcMarket(data);
+  if (!market) {
+    throw new Error("Mercado no encontrado.");
+  }
+
+  return market;
 }
 
 function getStatusClass(status) {
@@ -126,7 +132,11 @@ function getDifficultyFromPercentage(percentage) {
 }
 
 function getMaxKarma() {
-  return Math.min(demoUser.karma * predictionRules.maxNormalRatio, predictionRules.maxBeta);
+  const availableKarma = getDisplayUser().karma;
+  return Math.max(
+    predictionRules.minKarma,
+    Math.min(availableKarma * predictionRules.maxNormalRatio, predictionRules.maxBeta)
+  );
 }
 
 function clampKarma(value) {
@@ -146,7 +156,8 @@ function getOptionData(market, option) {
 function calculateEstimate(market) {
   const option = getOptionData(market, predictionState.option);
   const amount = clampKarma(predictionState.amount);
-  const returnTotal = amount * (100 / option.percentage);
+  const calculationPercentage = Math.max(option.percentage, 1);
+  const returnTotal = amount * (100 / calculationPercentage);
   const baseBenefit = returnTotal - amount;
   const bonus = amount * (difficultyBonus[option.difficulty] || 0);
   const prestige = prestigeTable[option.difficulty] || prestigeTable.Normal;
@@ -163,14 +174,20 @@ function calculateEstimate(market) {
 }
 
 function createTrendMarkup(market) {
+  const hasPredictions = market.tienePredicciones !== false && market.prediccionesReales > 0;
+  const label = hasPredictions
+    ? `Tendencia: Sí ${market.porcentajeSi} por ciento, No ${market.porcentajeNo} por ciento`
+    : "Sin predicciones todavía. Barra neutral al 50 por ciento para Sí y No.";
+
   return `
-    <div class="trend-card detail-trend-card">
+    <div class="trend-card detail-trend-card${hasPredictions ? "" : " trend-card-empty"}">
       <p class="trend-title">Tendencia actual</p>
+      ${hasPredictions ? "" : '<p class="trend-empty-note">Sin predicciones todavía</p>'}
       <div class="trend-row">
         <span>Sí ${market.porcentajeSi}%</span>
         <span>No ${market.porcentajeNo}%</span>
       </div>
-      <div class="trend-bar" style="--yes: ${market.porcentajeSi}%; --no: ${market.porcentajeNo}%;" role="img" aria-label="Tendencia: Sí ${market.porcentajeSi} por ciento, No ${market.porcentajeNo} por ciento">
+      <div class="trend-bar" style="--yes: ${market.porcentajeSi}%; --no: ${market.porcentajeNo}%;" role="img" aria-label="${label}">
         <span class="trend-yes"></span>
         <span class="trend-no"></span>
       </div>
@@ -183,7 +200,7 @@ function renderLoadingState() {
     <section class="not-found-card loading-detail-card">
       <p class="eyebrow">Detalle de mercado</p>
       <h1>Cargando mercado...</h1>
-      <p>Consultando la información del mercado en Supabase.</p>
+      <p>Consultando métricas públicas en Supabase.</p>
     </section>
   `;
 }
@@ -200,6 +217,11 @@ function renderNotFound() {
 }
 
 function renderDetail(market) {
+  const displayUser = getDisplayUser();
+  const noPredictionsNotice = market.tienePredicciones
+    ? ""
+    : '<p class="market-empty-note">Todavía no hay predicciones en este mercado.</p>';
+
   detailRoot.innerHTML = `
     <section class="detail-hero" aria-labelledby="detail-title">
       <div>
@@ -212,10 +234,10 @@ function renderDetail(market) {
         <p class="detail-description">${market.descripcion}</p>
       </div>
       <div class="detail-hero-card">
-        <span>Estado del usuario demo</span>
-        <strong>${demoUser.rango}</strong>
-        <small>Prestigio: ${formatNumber(demoUser.prestigio)}</small>
-        <small>Karma disponible: ${formatNumber(demoUser.karma)}</small>
+        <span>Estado del usuario</span>
+        <strong>${displayUser.rank}</strong>
+        <small>Prestigio: ${formatNumber(displayUser.prestige)}</small>
+        <small>Karma disponible: ${formatNumber(displayUser.karma)}</small>
       </div>
     </section>
 
@@ -223,13 +245,13 @@ function renderDetail(market) {
 
     <section class="detail-notices" aria-label="Avisos importantes">
       <p><strong>Privacidad:</strong> Tu predicción activa será privada hasta que el mercado se resuelva.</p>
-      <p><strong>Prototipo:</strong> Datos demo para prototipo. Sin dinero real.</p>
+      <p><strong>Prototipo:</strong> Sin dinero real. El Karma no se descuenta todavía.</p>
       <p><strong>Resolución:</strong> La resolución se basará en la fuente indicada.</p>
     </section>
 
     <div class="detail-layout">
       <aside class="prediction-panel" aria-labelledby="prediction-heading">
-        <p class="eyebrow">Participación demo</p>
+        <p class="eyebrow">Participación</p>
         <h2 id="prediction-heading">Hacer predicción</h2>
         <p class="panel-copy">El Karma permite participar. El Prestigio mide tu calidad como predictor.</p>
 
@@ -254,13 +276,14 @@ function renderDetail(market) {
 
         <div class="estimate-card" id="estimate-card"></div>
         <button class="primary-button confirm-button" id="confirm-prediction" type="button"${market.estado !== "Abierto" ? " disabled" : ""}>Confirmar predicción</button>
-        ${market.estado !== "Abierto" ? '<p class="disabled-note">Este mercado no está abierto. La participación queda desactivada en el prototipo.</p>' : ""}
+        ${market.estado !== "Abierto" ? '<p class="disabled-note">Este mercado no está abierto. La participación queda desactivada.</p>' : ""}
       </aside>
 
       <section class="detail-main">
         <article class="detail-card">
           <h2>Información del mercado</h2>
           ${createTrendMarkup(market)}
+          ${noPredictionsNotice}
           <div class="detail-stat-grid">
             <div class="stat"><span>Karma total</span><strong>${formatNumber(market.karmaTotal)}</strong></div>
             <div class="stat"><span>Participantes</span><strong>${formatNumber(market.participantes)}</strong></div>
@@ -281,17 +304,9 @@ function renderDetail(market) {
 
         <section class="detail-card comments-card" aria-labelledby="comments-title">
           <h2 id="comments-title">Debate del mercado</h2>
-          <div class="comment-list">
-            ${demoComments.map((comment) => `
-              <article class="comment-item">
-                <strong>${comment.user}</strong>
-                <p>${comment.text}</p>
-                <span>${comment.reaction}</span>
-              </article>
-            `).join("")}
-          </div>
+          <p class="comments-placeholder">Los comentarios reales se activarán más adelante.</p>
           <label class="sr-only" for="comment-placeholder">Comentarios</label>
-          <input id="comment-placeholder" class="comment-input" type="text" placeholder="Los comentarios reales se activarán con usuarios registrados." disabled>
+          <input id="comment-placeholder" class="comment-input" type="text" placeholder="Comentarios reales próximamente." disabled>
         </section>
       </section>
     </div>
@@ -369,8 +384,14 @@ function bindDetailEvents(market) {
 }
 
 function isDuplicatePredictionError(error) {
-  const message = `${error?.message || ""} ${error?.details || ""}`.toLowerCase();
-  return error?.code === "23505" || message.includes("duplicate") || message.includes("unique");
+  const message = `${error?.message || ""} ${error?.details || ""} ${error?.hint || ""}`.toLowerCase();
+  return (
+    error?.code === "23505" ||
+    message.includes("duplicate") ||
+    message.includes("unique") ||
+    message.includes("already") ||
+    message.includes("ya tienes")
+  );
 }
 
 function getPredictionPayload(market) {
@@ -441,32 +462,34 @@ function openPredictionModal(market, mode = "saved", errorMessage = "") {
   const isSaved = mode === "saved";
   const isDuplicate = mode === "duplicate";
   const title = isSaved
-    ? "Predicción guardada"
+    ? "Predicción confirmada correctamente"
     : isDuplicate
-      ? "Predicción ya registrada"
-      : "No se ha podido guardar";
-  const eyebrow = isSaved ? "Confirmación real" : "Aviso";
+      ? "Ya tienes una predicción registrada en este mercado."
+      : "No se ha podido guardar la predicción";
 
-  predictionModalEyebrow.textContent = eyebrow;
+  predictionModalCheck.hidden = !isSaved;
+  predictionModalEyebrow.textContent = isSaved ? "Predicción guardada" : "Aviso";
   predictionModalTitle.textContent = title;
+  predictionModalPrimary.hidden = mode === "error";
+  predictionModalPrimary.textContent = "Ver mis predicciones";
+  predictionModalOk.textContent = "Cerrar";
+
   predictionModalSummary.innerHTML = `
     <dl class="estimate-list modal-estimate-list">
       <div><dt>Mercado</dt><dd>${market.pregunta}</dd></div>
       <div><dt>Opción elegida</dt><dd>${estimate.option.label}</dd></div>
       <div><dt>Karma arriesgado</dt><dd>${formatKarma(estimate.amount)}</dd></div>
-      <div><dt>Beneficio base estimado</dt><dd>${formatKarma(estimate.baseBenefit)}</dd></div>
-      <div><dt>Bonus dificultad</dt><dd>+${formatKarma(estimate.bonus)}</dd></div>
-      <div><dt>Prestigio si acierta</dt><dd>+${estimate.prestigeHit}</dd></div>
+      <div><dt>Prestigio posible si acierta</dt><dd>+${estimate.prestigeHit}</dd></div>
       <div><dt>Prestigio si falla</dt><dd>${estimate.prestigeMiss}</dd></div>
-      <div><dt>Estado</dt><dd>${isSaved ? "Predicción guardada en Supabase." : isDuplicate ? "Ya tienes una predicción registrada en este mercado." : "Revisa el mensaje de error e inténtalo de nuevo."}</dd></div>
     </dl>
-    ${isSaved ? '<a class="secondary-button modal-link" href="my-predictions.html">Ver mis predicciones</a>' : ""}
   `;
+
   predictionModalWarning.textContent = isSaved
-    ? "El Karma no se descuenta todavía en este prototipo. El Prestigio se actualizará cuando el mercado se resuelva."
+    ? "Tu predicción se ha guardado en Supabase. El Karma no se descuenta todavía y el Prestigio se actualizará cuando el mercado se resuelva."
     : isDuplicate
-      ? "Las predicciones activas son privadas hasta resolución."
+      ? "Puedes revisar tu predicción existente en Mis predicciones."
       : errorMessage || "No se ha guardado ningún dato nuevo.";
+
   predictionModal.hidden = false;
   predictionModalOk.focus();
 }
@@ -510,7 +533,7 @@ async function initializeMarketDetail() {
       return;
     }
 
-    detailDataWarning = "No se ha podido cargar este mercado desde Supabase. Mostrando datos demo.";
+    detailDataWarning = "No se ha podido cargar este mercado desde Supabase. Mostrando mercado de prueba local.";
     renderDetail(fallbackMarket);
   }
 }

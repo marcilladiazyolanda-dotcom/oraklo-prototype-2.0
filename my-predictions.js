@@ -80,16 +80,13 @@ async function fetchMarketsForPredictions(predictions) {
     return new Map();
   }
 
-  const { data, error } = await window.orakloSupabase
-    .from("markets")
-    .select("*")
-    .in("id", marketIds);
+  const { data, error } = await window.orakloSupabase.rpc("get_public_markets");
 
   if (error) {
     return new Map();
   }
 
-  return new Map((data || []).map((row) => {
+  return new Map((data || []).filter((row) => marketIds.includes(row.id)).map((row) => {
     const market = typeof window.mapMarketFromSupabase === "function"
       ? window.mapMarketFromSupabase(row)
       : row;

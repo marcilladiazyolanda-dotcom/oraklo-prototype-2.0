@@ -50,8 +50,10 @@ function toNumber(value, fallback = 0) {
 }
 
 function mapMarketFromSupabase(row) {
-  const porcentajeSi = toNumber(row.yes_percent, 50);
-  const porcentajeNo = toNumber(row.no_percent, 100 - porcentajeSi);
+  const actualPredictionsCount = toNumber(row.actual_predictions_count, toNumber(row.participants_count));
+  const hasRealPredictions = actualPredictionsCount > 0;
+  const porcentajeSi = hasRealPredictions ? toNumber(row.yes_percent, 50) : 50;
+  const porcentajeNo = hasRealPredictions ? toNumber(row.no_percent, 100 - porcentajeSi) : 50;
 
   return {
     id: row.id,
@@ -61,8 +63,8 @@ function mapMarketFromSupabase(row) {
     porcentajeSi,
     porcentajeNo,
     dificultad: normalizeDifficulty(row.difficulty),
-    karmaTotal: toNumber(row.karma_total),
-    participantes: toNumber(row.participants_count),
+    karmaTotal: hasRealPredictions ? toNumber(row.karma_total) : 0,
+    participantes: hasRealPredictions ? toNumber(row.participants_count) : 0,
     comentarios: toNumber(row.comments_count),
     cierre: row.close_label,
     cierreFecha: row.closes_at,
@@ -73,7 +75,11 @@ function mapMarketFromSupabase(row) {
     casoDudoso: row.edge_case,
     destacado: Boolean(row.highlighted),
     popularidad: toNumber(row.popularity),
-    fechaCreacion: row.created_at
+    fechaCreacion: row.created_at,
+    prediccionesReales: actualPredictionsCount,
+    conteoSi: toNumber(row.actual_yes_count),
+    conteoNo: toNumber(row.actual_no_count),
+    tienePredicciones: hasRealPredictions
   };
 }
 

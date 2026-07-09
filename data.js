@@ -217,7 +217,7 @@ window.ORAKLO_MARKETS = [
     comentarios: 53,
     cierre: "Resuelto",
     cierreFecha: "2026-06-15",
-    descripcion: "Mercado demo resuelto sobre la cantidad de anuncios first party en un showcase de verano.",
+    descripcion: "Mercado de prueba resuelto sobre la cantidad de anuncios first party en un showcase de verano.",
     fuenteResolucion: "Listado oficial de anuncios del evento y resumen publicado por la compañía organizadora.",
     criterioSi: "Gana el Sí si hubo más de tres anuncios first party durante el showcase.",
     criterioNo: "Gana el No si hubo tres o menos anuncios first party.",
