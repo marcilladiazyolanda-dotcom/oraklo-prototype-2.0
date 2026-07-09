@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Oraklo | Detalle de mercado</title>
+  <meta name="description" content="Detalle de mercado demo de Oraklo.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar" aria-label="Cabecera principal">
+      <a class="brand" href="index.html" aria-label="Oraklo inicio">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">Oraklo</span>
+      </a>
+
+      <nav class="detail-nav" aria-label="Navegación de detalle">
+        <a href="index.html">Volver a mercados</a>
+      </nav>
+
+      <div class="topbar-actions detail-user-state" aria-label="Estado del usuario">
+        <span class="karma-pill" aria-label="Karma disponible: 1.000">
+          <span class="karma-symbol" aria-hidden="true">K</span>
+          <strong>1.000</strong>
+        </span>
+        <span class="user-stat-pill">Prestigio: <strong>0</strong></span>
+        <span class="user-stat-pill">Rango: <strong>Observador</strong></span>
+        <button class="profile-button" type="button" aria-label="Perfil de usuario">@Usuario</button>
+      </div>
+    </header>
+
+    <main id="market-detail-root" class="detail-page" aria-live="polite"></main>
+  </div>
+
+  <div class="modal-backdrop" id="prediction-modal" hidden>
+    <section class="modal prediction-modal" role="dialog" aria-modal="true" aria-labelledby="prediction-modal-title" aria-describedby="prediction-modal-description">
+      <button class="modal-close" id="prediction-modal-close" type="button" aria-label="Cerrar modal">×</button>
+      <p class="eyebrow">Confirmación demo</p>
+      <h2 id="prediction-modal-title">Predicción simulada</h2>
+      <div id="prediction-modal-description" class="modal-summary"></div>
+      <p class="prototype-warning">Prototipo frontend: esta predicción aún no se guarda en una base de datos.</p>
+      <div class="modal-actions">
+        <button class="primary-button" id="prediction-modal-ok" type="button">Entendido</button>
+      </div>
+    </section>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="market-detail.js"></script>
+</body>
+</html>
