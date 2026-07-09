@@ -357,9 +357,10 @@ h3 {
 }
 
 .featured-market {
-  margin-top: 22px;
+  margin-top: 32px;
   padding: 22px;
   overflow: hidden;
+  scroll-margin-top: 112px;
   background:
     linear-gradient(135deg, rgba(110, 168, 255, 0.16), rgba(94, 224, 160, 0.08) 45%, rgba(169, 139, 255, 0.12)),
     rgba(18, 24, 39, 0.86);
@@ -557,14 +558,27 @@ h3 {
 .market-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 14px;
 }
 
 .market-card {
   display: flex;
   flex-direction: column;
   min-height: 100%;
-  padding: 18px;
+  padding: 16px;
+  transition: border-color 180ms ease, background 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.market-card:hover {
+  border-color: rgba(110, 168, 255, 0.45);
+  background: rgba(21, 28, 45, 0.9);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.34), 0 0 0 1px rgba(110, 168, 255, 0.08);
+  transform: translateY(-2px);
+}
+
+.market-card:focus-within {
+  border-color: rgba(94, 224, 160, 0.55);
+  box-shadow: 0 0 0 3px rgba(94, 224, 160, 0.12), 0 18px 42px rgba(0, 0, 0, 0.28);
 }
 
 .market-card-header {
@@ -572,15 +586,17 @@ h3 {
   justify-content: space-between;
   gap: 10px;
   align-items: start;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .market-card h3 {
-  min-height: 60px;
+  min-height: 54px;
+  margin-bottom: 12px;
+  font-size: 1.12rem;
 }
 
 .market-card .trend-card {
-  padding: 14px;
+  padding: 12px;
   background: rgba(255, 255, 255, 0.035);
 }
 
@@ -588,13 +604,45 @@ h3 {
   display: flex;
   flex-wrap: wrap;
   gap: 8px 12px;
-  margin: 14px 0;
+  margin: 12px 0;
   color: var(--muted);
   font-size: 0.93rem;
 }
 
+.metric {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.metric::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  opacity: 0.92;
+}
+
+.metric-karma::before {
+  background: var(--gold);
+  transform: rotate(45deg);
+  box-shadow: 0 0 10px rgba(240, 196, 107, 0.35);
+}
+
+.metric-users::before {
+  border-radius: 50%;
+  background: var(--blue);
+  box-shadow: 0 0 10px rgba(110, 168, 255, 0.32);
+}
+
+.metric-comments::before {
+  border-radius: 2px;
+  background: var(--violet);
+  box-shadow: 0 0 10px rgba(169, 139, 255, 0.32);
+}
+
 .close-date {
-  margin: auto 0 16px;
+  margin: auto 0 14px;
   color: #dbe5f3;
   font-weight: 720;
 }
@@ -804,7 +852,7 @@ h3 {
   .chip-group {
     flex-wrap: nowrap;
     overflow-x: auto;
-    padding-bottom: 4px;
+    padding: 2px 2px 6px;
     scrollbar-width: thin;
   }
 
@@ -841,6 +889,14 @@ h3 {
 
   .market-card h3 {
     min-height: auto;
+  }
+
+  .market-card {
+    padding: 15px;
+  }
+
+  .market-card:hover {
+    transform: none;
   }
 }
 
@@ -1316,9 +1372,9 @@ function createMarketCard(market) {
     ${createTrendMarkup(market)}
     <div class="market-stats-line" aria-label="Datos de actividad del mercado">
       <span class="difficulty ${getDifficultyClass(market.dificultad)}">Dificultad: ${market.dificultad}</span>
-      <span>${formatNumber(market.karmaTotal)} Karma</span>
-      <span>${formatNumber(market.participantes)} participantes</span>
-      <span>${formatNumber(market.comentarios)} comentarios</span>
+      <span class="metric metric-karma">${formatNumber(market.karmaTotal)} Karma</span>
+      <span class="metric metric-users">${formatNumber(market.participantes)} participantes</span>
+      <span class="metric metric-comments">${formatNumber(market.comentarios)} comentarios</span>
     </div>
     <p class="close-date">${market.cierre}</p>
     <div class="card-actions">
