@@ -77,6 +77,7 @@
             </div>
             <p class="result-count" id="result-count" aria-live="polite"></p>
           </div>
+          <p class="data-source-warning" id="data-source-warning" hidden></p>
           <div class="market-grid" id="market-list"></div>
           <p class="empty-state" id="empty-state" hidden>No hay mercados que coincidan con estos filtros.</p>
         </section>
@@ -117,6 +118,8 @@
     </main>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabaseClient.js"></script>
   <script src="data.js"></script>
   <script src="script.js"></script>
 </body>

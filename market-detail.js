@@ -5,7 +5,6 @@ const demoUser = window.ORAKLO_DEMO_USER || {
   rango: "Observador"
 };
 
-const detailMarkets = window.ORAKLO_MARKETS || [];
 const detailRoot = document.querySelector("#market-detail-root");
 const predictionModal = document.querySelector("#prediction-modal");
 const predictionModalSummary = document.querySelector("#prediction-modal-description");
@@ -57,6 +56,8 @@ const demoComments = [
   }
 ];
 
+let detailDataWarning = "";
+
 function formatNumber(value) {
   return new Intl.NumberFormat("es-ES").format(value);
 }
@@ -67,6 +68,28 @@ function formatKarma(value) {
 
 function getQueryMarketId() {
   return new URLSearchParams(window.location.search).get("id");
+}
+
+function getFallbackMarkets() {
+  return Array.isArray(window.ORAKLO_MARKETS) ? window.ORAKLO_MARKETS : [];
+}
+
+async function loadMarketFromSupabase(marketId) {
+  if (!window.orakloSupabase || typeof window.mapMarketFromSupabase !== "function") {
+    throw new Error("Supabase no está disponible.");
+  }
+
+  const { data, error } = await window.orakloSupabase
+    .from("markets")
+    .select("*")
+    .eq("id", marketId)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return window.mapMarketFromSupabase(data);
 }
 
 function getStatusClass(status) {
@@ -152,12 +175,22 @@ function createTrendMarkup(market) {
   `;
 }
 
+function renderLoadingState() {
+  detailRoot.innerHTML = `
+    <section class="not-found-card loading-detail-card">
+      <p class="eyebrow">Detalle de mercado</p>
+      <h1>Cargando mercado...</h1>
+      <p>Consultando la información del mercado en Supabase.</p>
+    </section>
+  `;
+}
+
 function renderNotFound() {
   detailRoot.innerHTML = `
     <section class="not-found-card">
       <p class="eyebrow">Detalle de mercado</p>
       <h1>Mercado no encontrado</h1>
-      <p>No hemos encontrado un mercado demo con ese identificador.</p>
+      <p>No hemos encontrado un mercado con ese identificador.</p>
       <a class="primary-button" href="index.html">Volver a explorar mercados</a>
     </section>
   `;
@@ -182,6 +215,8 @@ function renderDetail(market) {
         <small>Karma disponible: ${formatNumber(demoUser.karma)}</small>
       </div>
     </section>
+
+    ${detailDataWarning ? `<p class="data-source-warning detail-source-warning">${detailDataWarning}</p>` : ""}
 
     <section class="detail-notices" aria-label="Avisos importantes">
       <p><strong>Privacidad:</strong> Tu predicción activa será privada hasta que el mercado se resuelva.</p>
@@ -366,11 +401,31 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
-const market = detailMarkets.find((item) => item.id === getQueryMarketId());
+async function initializeMarketDetail() {
+  const marketId = getQueryMarketId();
+  if (!marketId) {
+    renderNotFound();
+    return;
+  }
 
-if (!market) {
-  renderNotFound();
-} else {
+  renderLoadingState();
   predictionState.amount = predictionRules.minKarma;
-  renderDetail(market);
+
+  try {
+    const market = await loadMarketFromSupabase(marketId);
+    detailDataWarning = "";
+    renderDetail(market);
+  } catch (error) {
+    const fallbackMarket = getFallbackMarkets().find((item) => item.id === marketId);
+
+    if (!fallbackMarket) {
+      renderNotFound();
+      return;
+    }
+
+    detailDataWarning = "No se ha podido cargar este mercado desde Supabase. Mostrando datos demo.";
+    renderDetail(fallbackMarket);
+  }
 }
+
+initializeMarketDetail();

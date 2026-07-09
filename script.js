@@ -17,7 +17,7 @@ const stateFilters = [
   { id: "resueltos", label: "Resueltos" }
 ];
 
-const markets = window.ORAKLO_MARKETS || [];
+let markets = [];
 const seasonRankingUsers = [];
 
 const activeFilters = {
@@ -33,6 +33,7 @@ const resultCountNode = document.querySelector("#result-count");
 const emptyStateNode = document.querySelector("#empty-state");
 const featuredMarketNode = document.querySelector("#featured-market");
 const leaderboardPanelNode = document.querySelector("#leaderboard-panel");
+const dataSourceWarningNode = document.querySelector("#data-source-warning");
 const searchInput = document.querySelector("#market-search");
 const clearButton = document.querySelector("#clear-filters");
 
@@ -41,7 +42,7 @@ function formatNumber(value) {
 }
 
 function normalizeText(value) {
-  return value
+  return String(value || "")
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
@@ -75,6 +76,35 @@ function getStatusClass(status) {
 
 function isDifficultMarket(market) {
   return ["Difícil", "Muy difícil", "Épica"].includes(market.dificultad);
+}
+
+function getFallbackMarkets() {
+  return Array.isArray(window.ORAKLO_MARKETS) ? window.ORAKLO_MARKETS : [];
+}
+
+function setDataSourceWarning(message) {
+  if (!dataSourceWarningNode) return;
+  dataSourceWarningNode.textContent = message;
+  dataSourceWarningNode.hidden = !message;
+}
+
+async function loadMarketsFromSupabase() {
+  if (!window.orakloSupabase || typeof window.mapMarketFromSupabase !== "function") {
+    throw new Error("Supabase no está disponible.");
+  }
+
+  const { data, error } = await window.orakloSupabase
+    .from("markets")
+    .select("*")
+    .order("highlighted", { ascending: false })
+    .order("popularity", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data || []).map(window.mapMarketFromSupabase);
 }
 
 function getFilteredMarkets() {
@@ -287,6 +317,15 @@ function renderMarkets() {
   emptyStateNode.hidden = count !== 0;
 }
 
+function renderLoadingState() {
+  renderFilterButtons();
+  renderLeaderboard();
+  featuredMarketNode.hidden = true;
+  resultCountNode.textContent = "";
+  emptyStateNode.hidden = true;
+  marketListNode.innerHTML = '<p class="loading-state">Cargando mercados...</p>';
+}
+
 function render() {
   renderFilterButtons();
   renderFeaturedMarket();
@@ -308,4 +347,18 @@ searchInput.addEventListener("input", (event) => {
   render();
 });
 
-render();
+async function initializeMarkets() {
+  renderLoadingState();
+
+  try {
+    markets = await loadMarketsFromSupabase();
+    setDataSourceWarning("");
+  } catch (error) {
+    markets = getFallbackMarkets();
+    setDataSourceWarning("No se han podido cargar los mercados desde Supabase. Mostrando datos demo.");
+  }
+
+  render();
+}
+
+initializeMarkets();

@@ -601,6 +601,20 @@ h3 {
   font-size: 0.86rem;
 }
 
+.data-source-warning {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(240, 196, 107, 0.28);
+  border-radius: 8px;
+  color: #f7db9b;
+  background: rgba(240, 196, 107, 0.075);
+  font-size: 0.9rem;
+}
+
+.detail-source-warning {
+  margin-top: 18px;
+}
+
 .result-count {
   margin: 0;
   color: var(--muted);
@@ -611,6 +625,17 @@ h3 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
+}
+
+.loading-state {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.035);
+  text-align: center;
 }
 
 .market-card {
@@ -1249,6 +1274,10 @@ h3 {
   margin: 68px auto 0;
   padding: 24px;
   text-align: center;
+}
+
+.loading-detail-card {
+  text-align: left;
 }
 
 .not-found-card p {
