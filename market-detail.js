@@ -7,7 +7,10 @@ const demoUser = window.ORAKLO_DEMO_USER || {
 
 const detailRoot = document.querySelector("#market-detail-root");
 const predictionModal = document.querySelector("#prediction-modal");
+const predictionModalEyebrow = document.querySelector("#prediction-modal .eyebrow");
+const predictionModalTitle = document.querySelector("#prediction-modal-title");
 const predictionModalSummary = document.querySelector("#prediction-modal-description");
+const predictionModalWarning = document.querySelector("#prediction-modal .prototype-warning");
 const predictionModalClose = document.querySelector("#prediction-modal-close");
 const predictionModalOk = document.querySelector("#prediction-modal-ok");
 
@@ -332,7 +335,7 @@ function renderEstimate(market) {
       <div><dt>Prestigio posible si acierta</dt><dd>+${estimate.prestigeHit}</dd></div>
       <div><dt>Prestigio si falla</dt><dd>${estimate.prestigeMiss}</dd></div>
     </dl>
-    <p class="privacy-note">La predicción activa será privada hasta resolución.</p>
+    <p class="privacy-note">La predicción activa será privada hasta resolución. El Karma no se descuenta todavía en este prototipo.</p>
   `;
 }
 
@@ -361,13 +364,91 @@ function bindDetailEvents(market) {
   const confirmButton = document.querySelector("#confirm-prediction");
   confirmButton.addEventListener("click", () => {
     if (market.estado !== "Abierto") return;
-    openPredictionModal(market);
+    handleConfirmPrediction(market);
   });
 }
 
-function openPredictionModal(market) {
+function isDuplicatePredictionError(error) {
+  const message = `${error?.message || ""} ${error?.details || ""}`.toLowerCase();
+  return error?.code === "23505" || message.includes("duplicate") || message.includes("unique");
+}
+
+function getPredictionPayload(market) {
   const estimate = calculateEstimate(market);
 
+  return {
+    market_id: market.id,
+    option_selected: estimate.option.label,
+    entry_percentage: estimate.option.percentage,
+    option_difficulty: estimate.option.difficulty,
+    karma_risked: estimate.amount,
+    base_benefit_estimated: Math.round(estimate.baseBenefit),
+    difficulty_bonus_estimated: Math.round(estimate.bonus),
+    prestige_if_hit: estimate.prestigeHit,
+    prestige_if_miss: estimate.prestigeMiss,
+    status: "Activa"
+  };
+}
+
+async function savePredictionToSupabase(market) {
+  if (!window.orakloSupabase) {
+    throw new Error("Supabase no está disponible.");
+  }
+
+  const payload = getPredictionPayload(market);
+  const { data, error } = await window.orakloSupabase
+    .from("predictions")
+    .insert(payload)
+    .select("*")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+async function handleConfirmPrediction(market) {
+  const auth = await window.orakloAuth?.requireAuth({
+    message: "Inicia sesión para guardar tu predicción."
+  });
+
+  if (!auth) return;
+
+  const confirmButton = document.querySelector("#confirm-prediction");
+  const originalLabel = confirmButton.textContent;
+  confirmButton.disabled = true;
+  confirmButton.textContent = "Guardando...";
+
+  try {
+    await savePredictionToSupabase(market);
+    openPredictionModal(market, "saved");
+  } catch (error) {
+    if (isDuplicatePredictionError(error)) {
+      openPredictionModal(market, "duplicate");
+    } else {
+      openPredictionModal(market, "error", error.message);
+    }
+  } finally {
+    confirmButton.disabled = market.estado !== "Abierto";
+    confirmButton.textContent = originalLabel;
+  }
+}
+
+function openPredictionModal(market, mode = "saved", errorMessage = "") {
+  const estimate = calculateEstimate(market);
+  const isSaved = mode === "saved";
+  const isDuplicate = mode === "duplicate";
+  const title = isSaved
+    ? "Predicción guardada"
+    : isDuplicate
+      ? "Predicción ya registrada"
+      : "No se ha podido guardar";
+  const eyebrow = isSaved ? "Confirmación real" : "Aviso";
+
+  predictionModalEyebrow.textContent = eyebrow;
+  predictionModalTitle.textContent = title;
   predictionModalSummary.innerHTML = `
     <dl class="estimate-list modal-estimate-list">
       <div><dt>Mercado</dt><dd>${market.pregunta}</dd></div>
@@ -377,9 +458,15 @@ function openPredictionModal(market) {
       <div><dt>Bonus dificultad</dt><dd>+${formatKarma(estimate.bonus)}</dd></div>
       <div><dt>Prestigio si acierta</dt><dd>+${estimate.prestigeHit}</dd></div>
       <div><dt>Prestigio si falla</dt><dd>${estimate.prestigeMiss}</dd></div>
-      <div><dt>Aviso</dt><dd>Esta predicción no se guarda todavía porque no hay backend.</dd></div>
+      <div><dt>Estado</dt><dd>${isSaved ? "Predicción guardada en Supabase." : isDuplicate ? "Ya tienes una predicción registrada en este mercado." : "Revisa el mensaje de error e inténtalo de nuevo."}</dd></div>
     </dl>
+    ${isSaved ? '<a class="secondary-button modal-link" href="my-predictions.html">Ver mis predicciones</a>' : ""}
   `;
+  predictionModalWarning.textContent = isSaved
+    ? "El Karma no se descuenta todavía en este prototipo. El Prestigio se actualizará cuando el mercado se resuelva."
+    : isDuplicate
+      ? "Las predicciones activas son privadas hasta resolución."
+      : errorMessage || "No se ha guardado ningún dato nuevo.";
   predictionModal.hidden = false;
   predictionModalOk.focus();
 }

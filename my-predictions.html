@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Oraklo | Detalle de mercado</title>
-  <meta name="description" content="Detalle de mercado demo de Oraklo.">
+  <title>Oraklo | Mis predicciones</title>
+  <meta name="description" content="Predicciones guardadas del usuario en Oraklo.">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -15,9 +15,8 @@
         <span class="brand-name">Oraklo</span>
       </a>
 
-      <nav class="detail-nav" aria-label="Navegación de detalle">
-        <a href="index.html">Volver a mercados</a>
-        <a href="my-predictions.html">Mis predicciones</a>
+      <nav class="detail-nav" aria-label="Navegación de usuario">
+        <a href="index.html">Explorar mercados</a>
       </nav>
 
       <div class="topbar-actions detail-user-state" aria-label="Estado del usuario">
@@ -33,26 +32,29 @@
       </div>
     </header>
 
-    <main id="market-detail-root" class="detail-page" aria-live="polite"></main>
-  </div>
+    <main class="predictions-page">
+      <section class="page-intro predictions-intro" aria-labelledby="predictions-title">
+        <div>
+          <p class="eyebrow">Cuenta Oraklo</p>
+          <h1 id="predictions-title">Mis predicciones</h1>
+          <p class="subtitle">Consulta tus predicciones activas y tu historial.</p>
+          <p class="supporting-copy">Predicciones guardadas en Supabase. Sin dinero real.</p>
+        </div>
+      </section>
 
-  <div class="modal-backdrop" id="prediction-modal" hidden>
-    <section class="modal prediction-modal" role="dialog" aria-modal="true" aria-labelledby="prediction-modal-title" aria-describedby="prediction-modal-description">
-      <button class="modal-close" id="prediction-modal-close" type="button" aria-label="Cerrar modal">×</button>
-      <p class="eyebrow">Confirmación demo</p>
-      <h2 id="prediction-modal-title">Predicción simulada</h2>
-      <div id="prediction-modal-description" class="modal-summary"></div>
-      <p class="prototype-warning">Prototipo frontend: esta predicción aún no se guarda en una base de datos.</p>
-      <div class="modal-actions">
-        <button class="primary-button" id="prediction-modal-ok" type="button">Entendido</button>
-      </div>
-    </section>
+      <section class="detail-notices" aria-label="Avisos importantes">
+        <p><strong>Privacidad:</strong> Las predicciones activas son privadas.</p>
+        <p><strong>Karma:</strong> No se descuenta todavía en este prototipo.</p>
+        <p><strong>Prestigio:</strong> Se actualizará cuando los mercados se resuelvan.</p>
+      </section>
+
+      <section id="my-predictions-root" class="predictions-root" aria-live="polite"></section>
+    </main>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabaseClient.js"></script>
   <script src="auth.js"></script>
-  <script src="data.js"></script>
-  <script src="market-detail.js"></script>
+  <script src="my-predictions.js"></script>
 </body>
 </html>

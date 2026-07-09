@@ -10,7 +10,7 @@
 <body>
   <div class="app-shell">
     <header class="topbar" aria-label="Cabecera principal">
-      <a class="brand" href="#" aria-label="Oraklo inicio">
+      <a class="brand" href="index.html" aria-label="Oraklo inicio">
         <span class="brand-mark" aria-hidden="true"></span>
         <span class="brand-name">Oraklo</span>
       </a>
@@ -23,13 +23,18 @@
       <div class="topbar-actions" aria-label="Estado del usuario">
         <span class="karma-pill" aria-label="Karma disponible: 1.000">
           <span class="karma-symbol" aria-hidden="true">K</span>
-          <strong>1.000</strong>
+          <strong data-profile-karma>1.000</strong>
         </span>
+        <span class="user-stat-pill">Prestigio: <strong data-profile-prestige>0</strong></span>
+        <span class="user-stat-pill">Rango: <strong data-profile-rank>Observador</strong></span>
+        <a class="topbar-link" href="my-predictions.html">Mis predicciones</a>
         <button class="icon-button" type="button" aria-label="Notificaciones">
           <span class="bell" aria-hidden="true"></span>
           <span class="notification-dot" aria-hidden="true"></span>
         </button>
-        <button class="profile-button" type="button" aria-label="Perfil de usuario">@Usuario</button>
+        <button class="profile-button" type="button" data-auth-open data-auth-state="guest" data-profile-username aria-label="Entrar en Oraklo">Entrar</button>
+        <button class="profile-button" type="button" data-auth-state="user" data-profile-username hidden aria-label="Usuario @Usuario">@Usuario</button>
+        <button class="logout-button" type="button" data-auth-signout data-auth-state="user" hidden>Salir</button>
       </div>
     </header>
 
@@ -120,6 +125,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabaseClient.js"></script>
+  <script src="auth.js"></script>
   <script src="data.js"></script>
   <script src="script.js"></script>
 </body>

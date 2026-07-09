@@ -5,8 +5,10 @@ const SUPABASE_PUBLIC_KEY = "sb_publishable_t7BNtHlrectl4bIKE7_3cA_JxH1CGY_";
 // Nunca usar service_role ni claves secretas en frontend.
 window.orakloSupabase = null;
 
-if (window.supabase && typeof window.supabase.createClient === "function") {
-  window.orakloSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLIC_KEY);
+const supabaseFactory = window.supabase || globalThis.supabase;
+
+if (supabaseFactory && typeof supabaseFactory.createClient === "function") {
+  window.orakloSupabase = supabaseFactory.createClient(SUPABASE_URL, SUPABASE_PUBLIC_KEY);
 }
 
 function normalizeStatus(status) {
