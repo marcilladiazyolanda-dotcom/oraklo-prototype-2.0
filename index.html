@@ -156,13 +156,51 @@ button {
 .karma-pill {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 0 12px;
+  gap: 8px;
+  padding: 0 12px 0 8px;
   color: var(--muted);
 }
 
 .karma-pill strong {
   color: var(--gold);
+}
+
+.karma-symbol {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(240, 196, 107, 0.54);
+  border-radius: 50%;
+  color: var(--gold);
+  background:
+    linear-gradient(145deg, rgba(240, 196, 107, 0.18), rgba(110, 168, 255, 0.09)),
+    rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05), 0 0 18px rgba(240, 196, 107, 0.22);
+  font-size: 0.88rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.karma-symbol::before,
+.karma-symbol::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  width: 1px;
+  border-radius: 1px;
+  background: rgba(255, 238, 183, 0.92);
+  box-shadow: 0 0 7px rgba(240, 196, 107, 0.5);
+}
+
+.karma-symbol::before {
+  left: 12px;
+}
+
+.karma-symbol::after {
+  left: 15px;
 }
 
 .profile-button {
@@ -270,6 +308,12 @@ h3 {
 .season-snapshot small {
   display: block;
   color: var(--muted);
+}
+
+.prestige-note {
+  margin-top: 6px;
+  color: var(--subtle);
+  font-size: 0.78rem;
 }
 
 .season-snapshot strong {
@@ -549,6 +593,12 @@ h3 {
   font-size: 1.45rem;
 }
 
+.demo-note {
+  margin: 6px 0 0;
+  color: var(--subtle);
+  font-size: 0.86rem;
+}
+
 .result-count {
   margin: 0;
   color: var(--muted);
@@ -672,30 +722,96 @@ h3 {
   margin-bottom: 12px;
 }
 
-.leaderboard {
+.leaderboard,
+.leaderboard-list {
   display: grid;
   gap: 10px;
-  margin: 0;
-  padding-left: 24px;
 }
 
-.leaderboard li {
-  color: var(--muted);
+.leaderboard-empty {
+  display: grid;
+  gap: 12px;
 }
 
-.leaderboard span,
-.leaderboard strong {
+.leaderboard-placeholder {
+  display: grid;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.placeholder-line {
   display: block;
+  height: 9px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(110, 168, 255, 0.18), rgba(169, 139, 255, 0.1), rgba(94, 224, 160, 0.14));
 }
 
-.leaderboard span {
+.placeholder-line:nth-child(1) {
+  width: 88%;
+}
+
+.placeholder-line:nth-child(2) {
+  width: 66%;
+}
+
+.placeholder-line:nth-child(3) {
+  width: 74%;
+}
+
+.leaderboard-empty strong {
   color: var(--text);
-  font-weight: 760;
+  font-size: 0.98rem;
 }
 
-.leaderboard strong {
+.leaderboard-empty p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.leaderboard-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: inherit;
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.035);
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.leaderboard-row:hover {
+  border-color: rgba(110, 168, 255, 0.42);
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateY(-1px);
+}
+
+.rank-position {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(240, 196, 107, 0.32);
+  border-radius: 7px;
   color: var(--gold);
-  font-size: 0.9rem;
+  font-size: 0.84rem;
+  font-weight: 840;
+}
+
+.rank-user {
+  display: block;
+  color: var(--text);
+  font-weight: 780;
+}
+
+.rank-meta,
+.rank-category {
+  display: block;
+  color: var(--muted);
+  font-size: 0.84rem;
 }
 
 .weekly-event {
@@ -925,7 +1041,7 @@ h3 {
     padding: 14px;
   }
 }
-  </style>
+</style>
 </head>
 <body>
   <div class="app-shell">
@@ -941,7 +1057,10 @@ h3 {
       </form>
 
       <div class="topbar-actions" aria-label="Estado del usuario">
-        <span class="karma-pill">Karma: <strong>1.000</strong></span>
+        <span class="karma-pill" aria-label="Karma disponible: 1.000">
+          <span class="karma-symbol" aria-hidden="true">K</span>
+          <strong>1.000</strong>
+        </span>
         <button class="icon-button" type="button" aria-label="Notificaciones">
           <span class="bell" aria-hidden="true"></span>
           <span class="notification-dot" aria-hidden="true"></span>
@@ -953,23 +1072,24 @@ h3 {
     <main>
       <section class="page-intro" aria-labelledby="page-title">
         <div>
-          <p class="eyebrow">Temporada beta · Gaming predictivo</p>
+          <p class="eyebrow">Temporada beta &#xB7; Gaming predictivo</p>
           <h1 id="page-title">Explorar mercados</h1>
           <p class="subtitle">Predice el futuro del gaming. Gana Prestigio. Sube en el ranking.</p>
           <p class="supporting-copy">Elige un mercado, analiza las opciones y demuestra que lo viste venir.</p>
         </div>
         <div class="season-snapshot" aria-label="Resumen de temporada">
           <span>Rango actual</span>
-          <strong>Aprendiz</strong>
-          <small>Prestigio: 180</small>
+          <strong>Observador</strong>
+          <small>Prestigio: 0</small>
+          <small class="prestige-note">Se gana acertando predicciones.</small>
         </div>
       </section>
 
       <section class="filters" aria-label="Filtros de mercados">
         <div class="filter-row">
           <div>
-            <p class="filter-label">Categorías</p>
-            <div class="chip-group" id="category-filters" role="group" aria-label="Filtrar por categoría"></div>
+            <p class="filter-label">Categor&#xED;as</p>
+            <div class="chip-group" id="category-filters" role="group" aria-label="Filtrar por categor&#xED;a"></div>
           </div>
         </div>
         <div class="filter-row filter-row-bottom">
@@ -989,6 +1109,7 @@ h3 {
             <div>
               <p class="eyebrow">Mercados disponibles</p>
               <h2 id="markets-heading">Predicciones activas</h2>
+              <p class="demo-note">Datos de mercado de ejemplo para prototipo.</p>
             </div>
             <p class="result-count" id="result-count" aria-live="polite"></p>
           </div>
@@ -1002,25 +1123,21 @@ h3 {
               <p class="eyebrow">Ranking</p>
               <h2>Top temporada</h2>
             </div>
-            <ol class="leaderboard">
-              <li><span>PixelOráculo</span><strong>2.340 Prestigio</strong></li>
-              <li><span>YolVisionaria</span><strong>2.110 Prestigio</strong></li>
-              <li><span>NintenAnalyst</span><strong>1.980 Prestigio</strong></li>
-            </ol>
+            <div class="leaderboard" id="leaderboard-panel"></div>
           </section>
 
           <section class="side-card weekly-event">
             <p class="eyebrow">Evento semanal</p>
-            <h2>La Gran Predicción del Viernes</h2>
-            <p>¿Habrá nuevo Mario 3D en el próximo Direct?</p>
-            <button class="secondary-button" type="button" data-market-title="La Gran Predicción del Viernes">Ver evento</button>
+            <h2>La Gran Predicci&#xF3;n del Viernes</h2>
+            <p>&#xBF;Habr&#xE1; nuevo Mario 3D en el pr&#xF3;ximo Direct?</p>
+            <button class="secondary-button" type="button" data-market-title="La Gran Predicci&#xF3;n del Viernes">Ver evento</button>
           </section>
 
           <section class="side-card">
-            <p class="eyebrow">Guía rápida</p>
+            <p class="eyebrow">Gu&#xED;a r&#xE1;pida</p>
             <ul class="quick-guide">
               <li>Karma = saldo para participar.</li>
-              <li>Prestigio = reputación como predictor.</li>
+              <li>Prestigio = reputaci&#xF3;n como predictor.</li>
               <li>Las predicciones activas son privadas.</li>
               <li>El historial se muestra cuando el mercado se resuelve.</li>
             </ul>
@@ -1029,7 +1146,7 @@ h3 {
           <section class="side-card activity-card">
             <p class="eyebrow">Actividad</p>
             <h2>Ahora en Oraklo</h2>
-            <p>42 usuarios analizan cierres próximos y 18 comentarios nuevos esperan respuesta.</p>
+            <p>42 usuarios analizan cierres pr&#xF3;ximos y 18 comentarios nuevos esperan respuesta.</p>
           </section>
         </aside>
       </div>
@@ -1038,10 +1155,10 @@ h3 {
 
   <div class="modal-backdrop" id="market-modal" hidden>
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-description">
-      <button class="modal-close" id="modal-close" type="button" aria-label="Cerrar modal">×</button>
+      <button class="modal-close" id="modal-close" type="button" aria-label="Cerrar modal">&#xD7;</button>
       <p class="eyebrow">Detalle de mercado</p>
       <h2 id="modal-title">Mercado seleccionado</h2>
-      <p id="modal-description">La pantalla completa de detalle se desarrollará después. En esta primera versión solo se exploran y filtran mercados.</p>
+      <p id="modal-description">La pantalla completa de detalle se desarrollar&#xE1; despu&#xE9;s. En esta primera versi&#xF3;n solo se exploran y filtran mercados.</p>
       <div class="modal-actions">
         <button class="primary-button" id="modal-ok" type="button">Entendido</button>
       </div>
@@ -1063,7 +1180,7 @@ const stateFilters = [
   { id: "activos", label: "Activos" },
   { id: "cierran-pronto", label: "Cierran pronto" },
   { id: "populares", label: "Populares" },
-  { id: "dificiles", label: "Difíciles" },
+  { id: "dificiles", label: "Dif\u00EDciles" },
   { id: "nuevos", label: "Nuevos" },
   { id: "resueltos", label: "Resueltos" }
 ];
@@ -1071,7 +1188,7 @@ const stateFilters = [
 const markets = [
   {
     id: 1,
-    pregunta: "¿GTA VI se retrasará oficialmente a 2027?",
+    pregunta: "\u00BFGTA VI se retrasar\u00E1 oficialmente a 2027?",
     categoria: "Lanzamientos",
     estado: "Abierto",
     porcentajeSi: 42,
@@ -1080,7 +1197,7 @@ const markets = [
     karmaTotal: 1240,
     participantes: 328,
     comentarios: 86,
-    cierre: "Cierra en 3 días",
+    cierre: "Cierra en 3 d\u00EDas",
     cierreFecha: "2026-07-12",
     destacado: true,
     popularidad: 98,
@@ -1088,12 +1205,12 @@ const markets = [
   },
   {
     id: 2,
-    pregunta: "¿Hollow Knight: Silksong tendrá 90 o más en Metacritic?",
+    pregunta: "\u00BFHollow Knight: Silksong tendr\u00E1 90 o m\u00E1s en Metacritic?",
     categoria: "Reviews/Premios",
     estado: "Abierto",
     porcentajeSi: 31,
     porcentajeNo: 69,
-    dificultad: "Difícil",
+    dificultad: "Dif\u00EDcil",
     karmaTotal: 850,
     participantes: 124,
     comentarios: 32,
@@ -1105,7 +1222,7 @@ const markets = [
   },
   {
     id: 3,
-    pregunta: "¿Nintendo anunciará un nuevo Mario 3D en el próximo Direct?",
+    pregunta: "\u00BFNintendo anunciar\u00E1 un nuevo Mario 3D en el pr\u00F3ximo Direct?",
     categoria: "Eventos",
     estado: "Abierto",
     porcentajeSi: 54,
@@ -1114,7 +1231,7 @@ const markets = [
     karmaTotal: 1720,
     participantes: 402,
     comentarios: 119,
-    cierre: "Cierra en 6 días",
+    cierre: "Cierra en 6 d\u00EDas",
     cierreFecha: "2026-07-15",
     destacado: false,
     popularidad: 94,
@@ -1122,12 +1239,12 @@ const markets = [
   },
   {
     id: 4,
-    pregunta: "¿Ibai superará 3 millones de espectadores simultáneos antes del 31/12/2026?",
+    pregunta: "\u00BFIbai superar\u00E1 3 millones de espectadores simult\u00E1neos antes del 31/12/2026?",
     categoria: "Streamers",
     estado: "Abierto",
     porcentajeSi: 24,
     porcentajeNo: 76,
-    dificultad: "Muy difícil",
+    dificultad: "Muy dif\u00EDcil",
     karmaTotal: 960,
     participantes: 210,
     comentarios: 58,
@@ -1139,12 +1256,12 @@ const markets = [
   },
   {
     id: 5,
-    pregunta: "¿Un YouTuber gaming superará 10 millones de suscriptores antes de final de año?",
+    pregunta: "\u00BFUn YouTuber gaming superar\u00E1 10 millones de suscriptores antes de final de a\u00F1o?",
     categoria: "YouTubers",
     estado: "Abierto",
     porcentajeSi: 47,
     porcentajeNo: 53,
-    dificultad: "Difícil",
+    dificultad: "Dif\u00EDcil",
     karmaTotal: 640,
     participantes: 98,
     comentarios: 21,
@@ -1156,12 +1273,12 @@ const markets = [
   },
   {
     id: 6,
-    pregunta: "¿Xbox anunciará una nueva adquisición de estudio este año?",
+    pregunta: "\u00BFXbox anunciar\u00E1 una nueva adquisici\u00F3n de estudio este a\u00F1o?",
     categoria: "Industria",
     estado: "Abierto",
     porcentajeSi: 18,
     porcentajeNo: 82,
-    dificultad: "Épica",
+    dificultad: "\u00C9pica",
     karmaTotal: 1320,
     participantes: 286,
     comentarios: 74,
@@ -1173,7 +1290,7 @@ const markets = [
   },
   {
     id: 7,
-    pregunta: "¿Un juego indie será nominado a GOTY?",
+    pregunta: "\u00BFUn juego indie ser\u00E1 nominado a GOTY?",
     categoria: "Reviews/Premios",
     estado: "Abierto",
     porcentajeSi: 63,
@@ -1190,12 +1307,12 @@ const markets = [
   },
   {
     id: 8,
-    pregunta: "¿PlayStation anunciará un nuevo State of Play este mes?",
+    pregunta: "\u00BFPlayStation anunciar\u00E1 un nuevo State of Play este mes?",
     categoria: "Eventos",
     estado: "Abierto",
     porcentajeSi: 69,
     porcentajeNo: 31,
-    dificultad: "Fácil",
+    dificultad: "F\u00E1cil",
     karmaTotal: 720,
     participantes: 176,
     comentarios: 44,
@@ -1207,16 +1324,16 @@ const markets = [
   },
   {
     id: 9,
-    pregunta: "¿El próximo tráiler de Kojima Productions superará 5 millones de visualizaciones en 48 horas?",
+    pregunta: "\u00BFEl pr\u00F3ximo tr\u00E1iler de Kojima Productions superar\u00E1 5 millones de visualizaciones en 48 horas?",
     categoria: "Industria",
     estado: "Cerrado",
     porcentajeSi: 36,
     porcentajeNo: 64,
-    dificultad: "Difícil",
+    dificultad: "Dif\u00EDcil",
     karmaTotal: 480,
     participantes: 73,
     comentarios: 18,
-    cierre: "Pendiente de resolución",
+    cierre: "Pendiente de resoluci\u00F3n",
     cierreFecha: "2026-07-10",
     destacado: false,
     popularidad: 48,
@@ -1224,7 +1341,7 @@ const markets = [
   },
   {
     id: 10,
-    pregunta: "¿El último showcase de verano tendría más de tres anuncios first party?",
+    pregunta: "\u00BFEl \u00FAltimo showcase de verano tendr\u00EDa m\u00E1s de tres anuncios first party?",
     categoria: "Eventos",
     estado: "Resuelto",
     porcentajeSi: 57,
@@ -1241,6 +1358,8 @@ const markets = [
   }
 ];
 
+const seasonRankingUsers = [];
+
 const activeFilters = {
   category: "Todos",
   state: "activos",
@@ -1253,6 +1372,7 @@ const marketListNode = document.querySelector("#market-list");
 const resultCountNode = document.querySelector("#result-count");
 const emptyStateNode = document.querySelector("#empty-state");
 const featuredMarketNode = document.querySelector("#featured-market");
+const leaderboardPanelNode = document.querySelector("#leaderboard-panel");
 const searchInput = document.querySelector("#market-search");
 const clearButton = document.querySelector("#clear-filters");
 const modal = document.querySelector("#market-modal");
@@ -1274,11 +1394,11 @@ function normalizeText(value) {
 
 function getDifficultyClass(difficulty) {
   const classes = {
-    "Fácil": "difficulty-easy",
+    "F\u00E1cil": "difficulty-easy",
     "Normal": "difficulty-normal",
-    "Difícil": "difficulty-hard",
-    "Muy difícil": "difficulty-very-hard",
-    "Épica": "difficulty-epic"
+    "Dif\u00EDcil": "difficulty-hard",
+    "Muy dif\u00EDcil": "difficulty-very-hard",
+    "\u00C9pica": "difficulty-epic"
   };
 
   return classes[difficulty] || "difficulty-normal";
@@ -1295,7 +1415,7 @@ function getStatusClass(status) {
 }
 
 function isDifficultMarket(market) {
-  return ["Difícil", "Muy difícil", "Épica"].includes(market.dificultad);
+  return ["Dif\u00EDcil", "Muy dif\u00EDcil", "\u00C9pica"].includes(market.dificultad);
 }
 
 function getFilteredMarkets() {
@@ -1349,10 +1469,10 @@ function createTrendMarkup(market) {
     <div class="trend-card">
       <p class="trend-title">Tendencia actual</p>
       <div class="trend-row">
-        <span>Sí ${market.porcentajeSi}%</span>
+        <span>S\u00ED ${market.porcentajeSi}%</span>
         <span>No ${market.porcentajeNo}%</span>
       </div>
-      <div class="trend-bar" style="--yes: ${market.porcentajeSi}%; --no: ${market.porcentajeNo}%;" role="img" aria-label="Tendencia: Sí ${market.porcentajeSi} por ciento, No ${market.porcentajeNo} por ciento">
+      <div class="trend-bar" style="--yes: ${market.porcentajeSi}%; --no: ${market.porcentajeNo}%;" role="img" aria-label="Tendencia: S\u00ED ${market.porcentajeSi} por ciento, No ${market.porcentajeNo} por ciento">
         <span class="trend-yes"></span>
         <span class="trend-no"></span>
       </div>
@@ -1383,6 +1503,53 @@ function createMarketCard(market) {
   `;
 
   return card;
+}
+
+function getUserProfileUrl(user) {
+  return `profile.html?user=${encodeURIComponent(user.username)}`;
+}
+
+function createLeaderboardRow(user, index) {
+  const link = document.createElement("a");
+  link.className = "leaderboard-row";
+  link.href = getUserProfileUrl(user);
+  link.setAttribute("aria-label", `Ver perfil de ${user.username}`);
+  link.innerHTML = `
+    <span class="rank-position">${index + 1}</span>
+    <span>
+      <span class="rank-user">${user.username}</span>
+      <span class="rank-meta">${formatNumber(user.prestigio)} Prestigio \u00B7 ${user.rango}</span>
+      <span class="rank-category">Mejor categor\u00EDa: ${user.mejorCategoria}</span>
+    </span>
+  `;
+
+  return link;
+}
+
+function renderLeaderboard() {
+  leaderboardPanelNode.innerHTML = "";
+
+  if (seasonRankingUsers.length === 0) {
+    leaderboardPanelNode.innerHTML = `
+      <div class="leaderboard-empty">
+        <div class="leaderboard-placeholder" aria-hidden="true">
+          <span class="placeholder-line"></span>
+          <span class="placeholder-line"></span>
+          <span class="placeholder-line"></span>
+        </div>
+        <strong>A\u00FAn no hay predictores clasificados</strong>
+        <p>El ranking se activar\u00E1 cuando se resuelvan los primeros mercados.</p>
+      </div>
+    `;
+    return;
+  }
+
+  const list = document.createElement("div");
+  list.className = "leaderboard-list";
+  seasonRankingUsers.forEach((user, index) => {
+    list.appendChild(createLeaderboardRow(user, index));
+  });
+  leaderboardPanelNode.appendChild(list);
 }
 
 function renderFilterButtons() {
@@ -1432,7 +1599,7 @@ function renderFeaturedMarket() {
           <span class="status ${getStatusClass(market.estado)}">${market.estado}</span>
         </div>
         <h2 class="featured-question">${market.pregunta}</h2>
-        <p class="featured-copy">Un mercado de alta actividad para medir criterio, anticipación y lectura del calendario de la industria.</p>
+        <p class="featured-copy">Un mercado de alta actividad para medir criterio, anticipaci\u00F3n y lectura del calendario de la industria.</p>
       </div>
       <div>
         ${createTrendMarkup(market)}
@@ -1465,6 +1632,7 @@ function render() {
   renderFilterButtons();
   renderFeaturedMarket();
   renderMarkets();
+  renderLeaderboard();
 }
 
 function openMarketModal(title) {
@@ -1520,6 +1688,6 @@ document.addEventListener("keydown", (event) => {
 });
 
 render();
-  </script>
+</script>
 </body>
 </html>
