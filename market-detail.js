@@ -53,6 +53,64 @@ function formatNumber(value) {
   return new Intl.NumberFormat("es-ES").format(Number(value) || 0);
 }
 
+function escapeDetailHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function getSafeResolutionUrl(value) {
+  try {
+    const url = new URL(String(value || ""));
+    return url.protocol === "https:" ? url.href : "";
+  } catch (_error) {
+    return "";
+  }
+}
+
+function createResolutionSourcesMarkup(market) {
+  const sources = Array.isArray(market.fuentesResolucion)
+    ? market.fuentesResolucion
+    : [];
+  const sourceItems = sources.map((source) => {
+    const url = getSafeResolutionUrl(source.url);
+    if (!url) return "";
+
+    const citedText = source.citedText
+      ? `<p>${escapeDetailHtml(source.citedText)}</p>`
+      : "";
+
+    return `
+      <li class="resolution-source-item">
+        <a href="${escapeDetailHtml(url)}" target="_blank" rel="noopener noreferrer">
+          ${escapeDetailHtml(source.title || "Consultar fuente")}
+          <span aria-hidden="true">↗</span>
+        </a>
+        ${citedText}
+      </li>
+    `;
+  }).filter(Boolean).join("");
+
+  if (!sourceItems) return "";
+
+  const reviewLabel = market.modeloResolucionIa
+    ? "Análisis asistido por IA y aprobado por una persona."
+    : "Fuentes comprobadas durante la revisión humana.";
+
+  return `
+    <div class="resolution-evidence">
+      <dt>Motivos y fuentes verificadas</dt>
+      <dd>
+        <p class="resolution-review-label">${reviewLabel}</p>
+        <ul class="resolution-source-list">${sourceItems}</ul>
+      </dd>
+    </div>
+  `;
+}
+
 function formatKarma(value) {
   return `${formatNumber(Math.round(Number(value) || 0))} Karma`;
 }
@@ -230,15 +288,17 @@ function createResolutionMarkup(market) {
     ? window.formatOrakloLocalDate(market.fechaResolucion)
     : market.fechaResolucion || "";
   let outcomeRows = "";
+  let evidenceRows = "";
 
   if (market.resultadoResolucion) {
-    outcomeRows += `<div class="resolution-outcome"><dt>Resultado oficial</dt><dd>${market.resultadoResolucion}</dd></div>`;
+    outcomeRows += `<div class="resolution-outcome"><dt>Resultado oficial</dt><dd>${escapeDetailHtml(market.resultadoResolucion)}</dd></div>`;
     if (market.notaResolucion) {
-      outcomeRows += `<div><dt>Nota de resolución</dt><dd>${market.notaResolucion}</dd></div>`;
+      outcomeRows += `<div><dt>Explicación de la resolución</dt><dd>${escapeDetailHtml(market.notaResolucion)}</dd></div>`;
     }
     if (resolutionDate) {
-      outcomeRows += `<div><dt>Fecha de resolución</dt><dd>${resolutionDate}</dd></div>`;
+      outcomeRows += `<div><dt>Fecha de resolución</dt><dd>${escapeDetailHtml(resolutionDate)}</dd></div>`;
     }
+    evidenceRows = createResolutionSourcesMarkup(market);
   } else if (timing.isClosed) {
     outcomeRows = '<div class="resolution-pending"><dt>Estado de resolución</dt><dd>Pendiente de resolución</dd></div>';
   } else if (timing.isResolved) {
@@ -248,6 +308,7 @@ function createResolutionMarkup(market) {
   return `
     <dl class="resolution-list">
       ${outcomeRows}
+      ${evidenceRows}
       <div><dt>Fuente de resolución</dt><dd>${market.fuenteResolucion}</dd></div>
       <div><dt>Criterio de Sí</dt><dd>${market.criterioSi}</dd></div>
       <div><dt>Criterio de No</dt><dd>${market.criterioNo}</dd></div>

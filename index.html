@@ -15,19 +15,20 @@
         <span class="brand-name">Oraklo</span>
       </a>
 
-      <form class="search" role="search">
+      <div class="search" role="search">
         <label class="sr-only" for="market-search">Buscar mercados</label>
         <input id="market-search" type="search" placeholder="Buscar mercados, juegos, streamers o eventos..." autocomplete="off">
-      </form>
+      </div>
 
-      <div class="topbar-actions" aria-label="Estado del usuario">
-        <span class="karma-pill" aria-label="Karma disponible: 1.000">
+      <div class="topbar-actions" role="group" aria-label="Estado del usuario">
+        <span class="karma-pill" role="status" aria-label="Karma disponible: 1.000">
           <span class="karma-symbol" aria-hidden="true">K</span>
           <strong data-profile-karma>1.000</strong>
         </span>
         <span class="user-stat-pill">Prestigio: <strong data-profile-prestige>0</strong></span>
         <span class="user-stat-pill">Rango: <strong data-profile-rank>Observador</strong></span>
         <a class="topbar-link" href="my-predictions.html">Mis predicciones</a>
+        <a class="topbar-link admin-link" href="admin-resolution.html" data-admin-only hidden>Resolver mercados</a>
         <button class="icon-button" type="button" aria-label="Notificaciones">
           <span class="bell" aria-hidden="true"></span>
           <span class="notification-dot" aria-hidden="true"></span>
@@ -46,7 +47,7 @@
           <p class="subtitle">Predice el futuro del gaming. Gana Prestigio. Sube en el ranking.</p>
           <p class="supporting-copy">Elige un mercado, analiza las opciones y demuestra que lo viste venir.</p>
         </div>
-        <div class="season-snapshot" aria-label="Resumen de temporada">
+        <div class="season-snapshot" role="status" aria-label="Resumen de temporada">
           <span>Rango actual</span>
           <strong>Observador</strong>
           <small>Prestigio: 0</small>

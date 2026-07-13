@@ -43,7 +43,8 @@ function getCurrentAuthState() {
     user: authState.user,
     profile: authState.profile,
     ready: authState.ready,
-    isAuthenticated: Boolean(authState.session)
+    isAuthenticated: Boolean(authState.session),
+    isAdmin: authState.user?.app_metadata?.oraklo_admin === true
   };
 }
 
@@ -56,6 +57,7 @@ function notifyAuthListeners() {
 function updateHeaderSessionState() {
   const profile = authState.profile || guestProfile;
   const isAuthenticated = Boolean(authState.session);
+  const isAdmin = authState.user?.app_metadata?.oraklo_admin === true;
 
   document.querySelectorAll("[data-profile-karma]").forEach((node) => {
     node.textContent = formatAuthNumber(profile.karma);
@@ -89,7 +91,12 @@ function updateHeaderSessionState() {
     node.hidden = !isAuthenticated;
   });
 
+  document.querySelectorAll("[data-admin-only]").forEach((node) => {
+    node.hidden = !isAuthenticated || !isAdmin;
+  });
+
   document.body.classList.toggle("is-authenticated", isAuthenticated);
+  document.body.classList.toggle("is-oraklo-admin", isAuthenticated && isAdmin);
 }
 
 async function loadProfileForUser(user, fallbackProfile = null) {
@@ -366,7 +373,16 @@ async function initializeAuth() {
   }
 
   const { data } = await authClient.auth.getSession();
-  await applySession(data.session);
+  let initialSession = data.session;
+
+  if (initialSession) {
+    const { data: verifiedUserData } = await authClient.auth.getUser();
+    if (verifiedUserData.user) {
+      initialSession = { ...initialSession, user: verifiedUserData.user };
+    }
+  }
+
+  await applySession(initialSession);
 
   authClient.auth.onAuthStateChange((_event, session) => {
     applySession(session);

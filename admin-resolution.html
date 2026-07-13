@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Oraklo | Mis predicciones</title>
-  <meta name="description" content="Predicciones guardadas del usuario en Oraklo.">
+  <title>Oraklo | Resolver mercados</title>
+  <meta name="description" content="Revisión humana y resolución segura de mercados de Oraklo.">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -15,9 +15,9 @@
         <span class="brand-name">Oraklo</span>
       </a>
 
-      <nav class="detail-nav" aria-label="Navegación de usuario">
+      <nav class="detail-nav" aria-label="Navegación administrativa">
         <a href="index.html">Explorar mercados</a>
-        <a href="admin-resolution.html" data-admin-only hidden>Resolver mercados</a>
+        <a href="my-predictions.html">Mis predicciones</a>
       </nav>
 
       <div class="topbar-actions detail-user-state" role="group" aria-label="Estado del usuario">
@@ -33,31 +33,34 @@
       </div>
     </header>
 
-    <main class="predictions-page">
-      <section class="page-intro predictions-intro" aria-labelledby="predictions-title">
+    <main class="admin-resolution-page">
+      <section class="page-intro admin-resolution-intro" aria-labelledby="admin-resolution-title">
         <div>
-          <p class="eyebrow">Cuenta Oraklo</p>
-          <h1 id="predictions-title">Mis predicciones</h1>
-          <p class="subtitle">Consulta tus predicciones activas y tu historial.</p>
-          <p class="supporting-copy">Predicciones guardadas en Supabase. Sin dinero real.</p>
+          <p class="eyebrow">Administración · Revisión humana</p>
+          <h1 id="admin-resolution-title">Resolver mercados</h1>
+          <p class="subtitle">La IA investiga y propone. Tú compruebas las fuentes y decides.</p>
+          <p class="supporting-copy">Ningún análisis reparte Karma o Prestigio hasta que confirmes expresamente la resolución.</p>
         </div>
       </section>
 
-      <section class="detail-notices" aria-label="Avisos importantes">
-        <p><strong>Privacidad:</strong> Las predicciones activas son privadas.</p>
-        <p><strong>Karma:</strong> El Karma se descuenta al confirmar. Cuando el mercado se resuelve, Oraklo abona automáticamente el retorno que corresponda.</p>
-        <p><strong>Prestigio:</strong> El Prestigio se actualiza al resolver el mercado y nunca baja de 0.</p>
-        <p><strong>Anulación:</strong> Si un mercado se anula, se devuelve íntegramente el Karma arriesgado y no cambia el Prestigio.</p>
-        <p><strong>Prototipo:</strong> Sin dinero real, sin compra de Karma y sin Modo Real.</p>
+      <section class="detail-notices admin-resolution-notices" aria-label="Reglas de resolución">
+        <p><strong>Fecha límite:</strong> solo cuentan pruebas publicadas o sucedidas antes del cierre.</p>
+        <p><strong>Fuentes:</strong> prioriza comunicados oficiales y descarta rumores o filtraciones.</p>
+        <p><strong>Control:</strong> comprueba el resultado, la explicación y cada enlace antes de aprobar.</p>
       </section>
 
-      <section id="my-predictions-root" class="predictions-root" aria-live="polite"></section>
+      <section id="admin-resolution-root" class="admin-resolution-root" aria-live="polite">
+        <div class="admin-loading-card">
+          <p class="eyebrow">Preparando revisión</p>
+          <h2>Comprobando tus permisos...</h2>
+        </div>
+      </section>
     </main>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabaseClient.js"></script>
   <script src="auth.js"></script>
-  <script src="my-predictions.js"></script>
+  <script src="admin-resolution.js"></script>
 </body>
 </html>

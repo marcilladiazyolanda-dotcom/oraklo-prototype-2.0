@@ -1675,6 +1675,385 @@ h3 {
   margin-top: 8px;
 }
 
+.resolution-evidence {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.resolution-evidence h3 {
+  margin-bottom: 6px;
+  font-size: 1rem;
+}
+
+.resolution-review-label {
+  margin-bottom: 12px;
+  color: var(--green);
+  font-size: 0.82rem;
+  font-weight: 720;
+}
+
+.resolution-source-list {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.resolution-source-item {
+  display: grid;
+  gap: 5px;
+  padding: 11px 12px;
+  border: 1px solid rgba(110, 168, 255, 0.24);
+  border-radius: 8px;
+  background: rgba(110, 168, 255, 0.055);
+}
+
+.resolution-source-item a {
+  color: #bcd5ff;
+  font-weight: 720;
+  text-decoration: none;
+}
+
+.resolution-source-item a:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.resolution-source-item small {
+  color: var(--muted);
+}
+
+.admin-resolution-page {
+  padding-top: 10px;
+}
+
+.admin-resolution-intro {
+  padding-bottom: 20px;
+}
+
+.admin-resolution-intro > div {
+  max-width: 820px;
+}
+
+.admin-resolution-root {
+  margin-top: 24px;
+}
+
+.admin-resolution-layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.75fr) minmax(0, 1.45fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.admin-market-panel,
+.admin-analysis-panel,
+.admin-access-card,
+.admin-loading-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(18, 24, 39, 0.82);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.24);
+}
+
+.admin-market-panel,
+.admin-analysis-panel {
+  padding: 20px;
+}
+
+.admin-market-panel {
+  position: sticky;
+  top: 102px;
+}
+
+.admin-access-card,
+.admin-loading-card {
+  max-width: 720px;
+  padding: 24px;
+}
+
+.admin-access-card p,
+.admin-loading-card p,
+.admin-analysis-empty p,
+.admin-action-help,
+.admin-sources-section > p {
+  color: var(--muted);
+}
+
+.admin-access-card .primary-button,
+.admin-access-card .secondary-button {
+  width: auto;
+  margin-top: 8px;
+}
+
+.admin-field {
+  display: grid;
+  gap: 7px;
+  margin-top: 16px;
+}
+
+.admin-field > span {
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 720;
+}
+
+.admin-field select,
+.admin-field textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  background: #151b2b;
+  padding: 11px 12px;
+  font: inherit;
+  outline: none;
+}
+
+.admin-field select:focus,
+.admin-field textarea:focus {
+  border-color: rgba(110, 168, 255, 0.75);
+  box-shadow: 0 0 0 3px rgba(110, 168, 255, 0.16);
+}
+
+.admin-field textarea {
+  min-height: 160px;
+  resize: vertical;
+}
+
+.admin-market-summary {
+  display: grid;
+  gap: 11px;
+  margin: 18px 0;
+}
+
+.admin-market-summary div {
+  padding: 10px 11px;
+  border-left: 2px solid rgba(110, 168, 255, 0.42);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.admin-market-summary dt {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.admin-market-summary dd {
+  margin: 3px 0 0;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 680;
+}
+
+.admin-analyze-button,
+.admin-resolve-button {
+  width: 100%;
+}
+
+.admin-action-help,
+.admin-final-warning {
+  margin: 9px 0 0;
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+.admin-analysis-empty {
+  min-height: 260px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  padding: 32px;
+  text-align: center;
+}
+
+.admin-proposal-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  margin: 14px 0;
+  padding: 14px;
+  border: 1px solid rgba(94, 224, 160, 0.3);
+  border-radius: 8px;
+  background: rgba(94, 224, 160, 0.07);
+}
+
+.admin-proposal-heading span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.admin-proposal-heading strong {
+  display: block;
+  margin-top: 2px;
+  color: var(--green);
+  font-size: 1.55rem;
+}
+
+.admin-confidence {
+  flex: 0 0 auto;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--text) !important;
+}
+
+.admin-analysis-summary {
+  color: #e7edf8;
+  font-size: 1.03rem;
+}
+
+.admin-reasons,
+.admin-cutoff-check,
+.admin-caveats,
+.admin-sources-section,
+.admin-approval-form,
+.admin-audit-notice {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.admin-reasons h3,
+.admin-cutoff-check h3,
+.admin-caveats h3,
+.admin-sources-section h3,
+.admin-approval-form h3 {
+  margin-bottom: 8px;
+  font-size: 1rem;
+}
+
+.admin-reasons ul,
+.admin-caveats ul {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--muted);
+}
+
+.admin-cutoff-check p,
+.admin-audit-notice p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.admin-caveats {
+  border-color: rgba(240, 196, 107, 0.28);
+  background: rgba(240, 196, 107, 0.055);
+}
+
+.admin-source-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.admin-source-card {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid rgba(110, 168, 255, 0.25);
+  border-radius: 8px;
+  background: rgba(110, 168, 255, 0.055);
+}
+
+.admin-source-card a {
+  color: #bcd5ff;
+  font-weight: 740;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.admin-source-card a:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.admin-source-card p,
+.admin-no-sources {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.admin-source-check,
+.admin-human-check {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.admin-source-check input,
+.admin-human-check input {
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
+  margin-top: 2px;
+  accent-color: var(--green);
+}
+
+.admin-human-check {
+  margin: 18px 0;
+  color: var(--text);
+}
+
+.danger-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 138, 138, 0.58);
+  border-radius: 8px;
+  color: #fff;
+  background: linear-gradient(135deg, #b8435b, #7d334f);
+  font: inherit;
+  font-weight: 800;
+}
+
+.danger-button:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.danger-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.admin-final-warning {
+  color: #ffb8c4;
+}
+
+.admin-audit-notice {
+  border-color: rgba(110, 168, 255, 0.3);
+  background: rgba(110, 168, 255, 0.065);
+}
+
+.admin-status-message {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.admin-status-error {
+  color: #ffd2d2;
+  border-color: rgba(255, 138, 138, 0.38);
+  background: rgba(255, 138, 138, 0.09);
+}
+
+.admin-status-success {
+  color: #c8f4dc;
+  border-color: rgba(94, 224, 160, 0.38);
+  background: rgba(94, 224, 160, 0.09);
+}
+
 @media (max-width: 1120px) {
   .topbar {
     grid-template-columns: auto 1fr;
@@ -1698,6 +2077,14 @@ h3 {
     grid-template-areas:
       "side"
       "main";
+  }
+
+  .admin-resolution-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-market-panel {
+    position: static;
   }
 
   .sidebar {
@@ -1838,6 +2225,11 @@ h3 {
 
   .prediction-card:hover {
     transform: none;
+  }
+
+  .admin-proposal-heading {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 

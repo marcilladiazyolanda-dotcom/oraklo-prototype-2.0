@@ -57,6 +57,29 @@ function toNumber(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function normalizeResolutionSources(value) {
+  let sources = value;
+
+  if (typeof sources === "string") {
+    try {
+      sources = JSON.parse(sources);
+    } catch (_error) {
+      sources = [];
+    }
+  }
+
+  if (!Array.isArray(sources)) return [];
+
+  return sources
+    .filter((source) => source && typeof source === "object")
+    .map((source) => ({
+      title: String(source.title || "Fuente de resolución").trim(),
+      url: String(source.url || "").trim(),
+      citedText: String(source.cited_text || source.citedText || "").trim()
+    }))
+    .filter((source) => source.url);
+}
+
 function getValidTimestamp(value) {
   if (value === null || value === undefined || value === "") return null;
   const timestamp = new Date(value).getTime();
@@ -153,6 +176,9 @@ function mapMarketFromSupabase(row) {
     resultadoResolucion: row.resolution_result,
     notaResolucion: row.resolution_note,
     fechaResolucion: row.resolved_at,
+    fuentesResolucion: normalizeResolutionSources(row.resolution_sources),
+    modeloResolucionIa: row.resolution_ai_model || "",
+    fechaAnalisisIa: row.resolution_ai_generated_at || null,
     descripcion: row.description,
     fuenteResolucion: row.resolution_source,
     criterioSi: row.yes_criteria,
@@ -169,6 +195,7 @@ function mapMarketFromSupabase(row) {
 }
 
 window.mapMarketFromSupabase = mapMarketFromSupabase;
+window.normalizeOrakloResolutionSources = normalizeResolutionSources;
 window.getOrakloEffectiveMarketStatus = getOrakloEffectiveMarketStatus;
 window.getOrakloMarketTiming = getOrakloMarketTiming;
 window.formatOrakloLocalDate = formatOrakloLocalDate;
