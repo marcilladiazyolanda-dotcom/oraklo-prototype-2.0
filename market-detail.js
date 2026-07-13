@@ -45,6 +45,9 @@ const prestigeTable = {
 
 let detailDataWarning = "";
 let currentMarket = null;
+let detailClockTimer = null;
+let detailCloseRefreshRequested = false;
+let currentMarketUsesSupabase = false;
 
 function formatNumber(value) {
   return new Intl.NumberFormat("es-ES").format(Number(value) || 0);
@@ -70,6 +73,18 @@ function getDisplayUser() {
     prestige: Number(authProfile?.prestige ?? fallbackUser.prestigio ?? 0),
     rank: authProfile?.rank || fallbackUser.rango || "Observador"
   };
+}
+
+function getMarketTiming(market, now = Date.now()) {
+  return window.getOrakloMarketTiming(market, now);
+}
+
+function getMarketStatusLabel(market, now = Date.now()) {
+  const timing = getMarketTiming(market, now);
+  if (timing.isResolved && market.resultadoResolucion) {
+    return `Resuelto · ${market.resultadoResolucion}`;
+  }
+  return timing.effectiveStatus;
 }
 
 function normalizeRpcMarket(data) {
@@ -164,10 +179,13 @@ function getOptionData(market, option) {
 function calculateEstimate(market) {
   const option = getOptionData(market, predictionState.option);
   const amount = clampKarma(predictionState.amount);
-  const calculationPercentage = Math.max(option.percentage, 1);
-  const returnTotal = amount * (100 / calculationPercentage);
-  const baseBenefit = returnTotal - amount;
-  const bonus = amount * (difficultyBonus[option.difficulty] || 0);
+  const calculationPercentage = Math.min(100, Math.max(option.percentage, 10));
+  const baseReturnTotal = amount * (100 / calculationPercentage);
+  const baseBenefit = Math.max(0, baseReturnTotal - amount);
+  const rawBonus = amount * (difficultyBonus[option.difficulty] || 0);
+  const maxReturnTotal = amount * 10;
+  const returnTotal = Math.min(baseReturnTotal + rawBonus, maxReturnTotal);
+  const bonus = Math.max(0, returnTotal - baseReturnTotal);
   const prestige = prestigeTable[option.difficulty] || prestigeTable.Normal;
 
   return {
@@ -176,6 +194,9 @@ function calculateEstimate(market) {
     returnTotal,
     baseBenefit,
     bonus,
+    maxReturnTotal,
+    calculationPercentage,
+    isCapped: baseReturnTotal + rawBonus > maxReturnTotal,
     prestigeHit: prestige.hit,
     prestigeMiss: prestige.miss
   };
@@ -203,6 +224,38 @@ function createTrendMarkup(market) {
   `;
 }
 
+function createResolutionMarkup(market) {
+  const timing = getMarketTiming(market);
+  const resolutionDate = market.fechaResolucion && typeof window.formatOrakloLocalDate === "function"
+    ? window.formatOrakloLocalDate(market.fechaResolucion)
+    : market.fechaResolucion || "";
+  let outcomeRows = "";
+
+  if (market.resultadoResolucion) {
+    outcomeRows += `<div class="resolution-outcome"><dt>Resultado oficial</dt><dd>${market.resultadoResolucion}</dd></div>`;
+    if (market.notaResolucion) {
+      outcomeRows += `<div><dt>Nota de resolución</dt><dd>${market.notaResolucion}</dd></div>`;
+    }
+    if (resolutionDate) {
+      outcomeRows += `<div><dt>Fecha de resolución</dt><dd>${resolutionDate}</dd></div>`;
+    }
+  } else if (timing.isClosed) {
+    outcomeRows = '<div class="resolution-pending"><dt>Estado de resolución</dt><dd>Pendiente de resolución</dd></div>';
+  } else if (timing.isResolved) {
+    outcomeRows = '<div class="resolution-pending"><dt>Resultado oficial</dt><dd>No disponible</dd></div>';
+  }
+
+  return `
+    <dl class="resolution-list">
+      ${outcomeRows}
+      <div><dt>Fuente de resolución</dt><dd>${market.fuenteResolucion}</dd></div>
+      <div><dt>Criterio de Sí</dt><dd>${market.criterioSi}</dd></div>
+      <div><dt>Criterio de No</dt><dd>${market.criterioNo}</dd></div>
+      <div><dt>Caso dudoso</dt><dd>${market.casoDudoso}</dd></div>
+    </dl>
+  `;
+}
+
 function renderLoadingState() {
   detailRoot.innerHTML = `
     <section class="not-found-card loading-detail-card">
@@ -214,6 +267,8 @@ function renderLoadingState() {
 }
 
 function renderNotFound() {
+  currentMarket = null;
+  stopDetailClock();
   detailRoot.innerHTML = `
     <section class="not-found-card">
       <p class="eyebrow">Detalle de mercado</p>
@@ -229,25 +284,28 @@ function renderDetail(market) {
   const displayUser = getDisplayUser();
   const maxKarma = getMaxKarma();
   const hasEnoughKarma = maxKarma >= predictionRules.minKarma;
-  const participationDisabled = market.estado !== "Abierto" || !hasEnoughKarma;
+  const timing = getMarketTiming(market);
+  const participationDisabled = !timing.isOpen || !hasEnoughKarma;
   predictionState.amount = hasEnoughKarma
     ? clampKarma(predictionState.amount || predictionRules.minKarma)
     : 0;
   const noPredictionsNotice = market.tienePredicciones
     ? ""
     : '<p class="market-empty-note">Todavía no hay predicciones en este mercado.</p>';
-  const disabledNote = market.estado !== "Abierto"
-    ? "Este mercado no está abierto. La participación queda desactivada."
-    : !hasEnoughKarma
-      ? "Tu saldo actual no permite alcanzar el mínimo de 10 Karma con el límite del 20 %."
-      : "";
+  const disabledNote = timing.isResolved
+    ? "Este mercado está resuelto. La participación queda desactivada."
+    : timing.isClosed
+      ? "Este mercado está cerrado y pendiente de resolución."
+      : !hasEnoughKarma
+        ? "Tu saldo actual no permite alcanzar el mínimo de 10 Karma con el límite del 20 %."
+        : "";
 
   detailRoot.innerHTML = `
     <section class="detail-hero" aria-labelledby="detail-title">
       <div>
         <div class="featured-meta">
           <span class="tag">${market.categoria}</span>
-          <span class="status ${getStatusClass(market.estado)}">${market.estado}</span>
+          <span class="status ${getStatusClass(timing.effectiveStatus)}" data-detail-market-status>${getMarketStatusLabel(market)}</span>
           <span class="difficulty ${getDifficultyClass(market.dificultad)}">Dificultad: ${market.dificultad}</span>
         </div>
         <h1 id="detail-title">${market.pregunta}</h1>
@@ -265,8 +323,8 @@ function renderDetail(market) {
 
     <section class="detail-notices" aria-label="Avisos importantes">
       <p><strong>Privacidad:</strong> Tu predicción activa será privada hasta que el mercado se resuelva.</p>
-      <p><strong>Prototipo:</strong> Sin dinero real. El Karma se descuenta al confirmar una predicción. El Prestigio se actualizará cuando el mercado se resuelva.</p>
-      <p><strong>Resolución:</strong> La resolución se basará en la fuente indicada.</p>
+      <p><strong>Prototipo:</strong> Sin dinero real, sin compra de Karma y sin Modo Real.</p>
+      <p><strong>Resolución:</strong> El Karma se descuenta al confirmar. El retorno y el Prestigio se actualizan al resolver; el Prestigio nunca baja de 0. Si se anula, se devuelve todo el Karma y no cambia el Prestigio.</p>
     </section>
 
     <div class="detail-layout">
@@ -276,27 +334,27 @@ function renderDetail(market) {
         <p class="panel-copy">El Karma permite participar. El Prestigio mide tu calidad como predictor.</p>
 
         <div class="option-grid" role="group" aria-label="Seleccionar opción">
-          ${createOptionButton(market, "si")}
-          ${createOptionButton(market, "no")}
+          ${createOptionButton(market, "si", participationDisabled)}
+          ${createOptionButton(market, "no", participationDisabled)}
         </div>
 
         <div class="karma-input-block">
           <label for="karma-amount">Cantidad de Karma</label>
           <div class="karma-input-row">
-            <input id="karma-amount" type="number" min="${hasEnoughKarma ? predictionRules.minKarma : 0}" max="${maxKarma}" step="10" value="${predictionState.amount}"${hasEnoughKarma ? "" : " disabled"}>
+            <input id="karma-amount" type="number" min="${hasEnoughKarma ? predictionRules.minKarma : 0}" max="${maxKarma}" step="10" value="${predictionState.amount}"${participationDisabled ? " disabled" : ""}>
             <span class="input-limit">Máx. ${formatNumber(maxKarma)}</span>
           </div>
           <div class="quick-amounts" aria-label="Cantidades rápidas">
-            <button type="button" data-amount="10"${maxKarma < 10 ? " disabled" : ""}>10 K</button>
-            <button type="button" data-amount="50"${maxKarma < 50 ? " disabled" : ""}>50 K</button>
-            <button type="button" data-amount="100"${maxKarma < 100 ? " disabled" : ""}>100 K</button>
-            <button type="button" data-amount="max"${hasEnoughKarma ? "" : " disabled"}>Máx.</button>
+            <button type="button" data-amount="10"${participationDisabled || maxKarma < 10 ? " disabled" : ""}>10 K</button>
+            <button type="button" data-amount="50"${participationDisabled || maxKarma < 50 ? " disabled" : ""}>50 K</button>
+            <button type="button" data-amount="100"${participationDisabled || maxKarma < 100 ? " disabled" : ""}>100 K</button>
+            <button type="button" data-amount="max"${participationDisabled ? " disabled" : ""}>Máx.</button>
           </div>
         </div>
 
         <div class="estimate-card" id="estimate-card"></div>
         <button class="primary-button confirm-button" id="confirm-prediction" type="button"${participationDisabled ? " disabled" : ""}>Confirmar predicción</button>
-        ${disabledNote ? `<p class="disabled-note">${disabledNote}</p>` : ""}
+        <p class="disabled-note" data-market-disabled-note${disabledNote ? "" : " hidden"}>${disabledNote}</p>
       </aside>
 
       <section class="detail-main">
@@ -308,18 +366,17 @@ function renderDetail(market) {
             <div class="stat"><span>Karma total</span><strong>${formatNumber(market.karmaTotal)}</strong></div>
             <div class="stat"><span>Participantes</span><strong>${formatNumber(market.participantes)}</strong></div>
             <div class="stat"><span>Comentarios</span><strong>${formatNumber(market.comentarios)}</strong></div>
-            <div class="stat"><span>Cierre</span><strong>${market.cierre}</strong></div>
+            <div class="stat detail-close-stat">
+              <span>Cierre</span>
+              <strong data-detail-market-countdown>${timing.label}</strong>
+              <small data-detail-market-exact${timing.exactLabel ? "" : " hidden"}>${timing.exactLabel}</small>
+            </div>
           </div>
         </article>
 
         <article class="detail-card">
           <h2>Resolución</h2>
-          <dl class="resolution-list">
-            <div><dt>Fuente de resolución</dt><dd>${market.fuenteResolucion}</dd></div>
-            <div><dt>Criterio de Sí</dt><dd>${market.criterioSi}</dd></div>
-            <div><dt>Criterio de No</dt><dd>${market.criterioNo}</dd></div>
-            <div><dt>Caso dudoso</dt><dd>${market.casoDudoso}</dd></div>
-          </dl>
+          ${createResolutionMarkup(market)}
         </article>
 
         <section class="detail-card comments-card" aria-labelledby="comments-title">
@@ -334,14 +391,15 @@ function renderDetail(market) {
 
   bindDetailEvents(market);
   renderEstimate(market);
+  updateDetailClock();
 }
 
-function createOptionButton(market, optionId) {
+function createOptionButton(market, optionId, disabled = false) {
   const option = getOptionData(market, optionId);
   const selected = predictionState.option === optionId;
 
   return `
-    <button class="option-button${selected ? " is-selected" : ""}" type="button" data-option="${optionId}" aria-pressed="${selected}">
+    <button class="option-button${selected ? " is-selected" : ""}" type="button" data-option="${optionId}" aria-pressed="${selected}"${disabled ? " disabled" : ""}>
       <span>${option.label}</span>
       <strong>${option.percentage}%</strong>
       <small>Dificultad: ${option.difficulty}</small>
@@ -367,6 +425,8 @@ function renderEstimate(market) {
       <div><dt>Valor de la opción al entrar</dt><dd>${estimate.option.percentage}%</dd></div>
       <div><dt>Beneficio base estimado</dt><dd>${formatKarma(estimate.baseBenefit)}</dd></div>
       <div><dt>Bonus por dificultad</dt><dd>+${formatKarma(estimate.bonus)}</dd></div>
+      <div><dt>Retorno total estimado</dt><dd>${formatKarma(estimate.returnTotal)}</dd></div>
+      <div><dt>Tope de retorno</dt><dd>×10 · ${formatKarma(estimate.maxReturnTotal)}</dd></div>
       <div><dt>Prestigio posible si acierta</dt><dd>+${estimate.prestigeHit}</dd></div>
       <div><dt>Prestigio si falla</dt><dd>${estimate.prestigeMiss}</dd></div>
     </dl>
@@ -383,7 +443,7 @@ function bindDetailEvents(market) {
   });
 
   const amountInput = document.querySelector("#karma-amount");
-  amountInput.addEventListener("input", (event) => {
+  amountInput?.addEventListener("input", (event) => {
     predictionState.amount = clampKarma(event.target.value);
     renderEstimate(market);
   });
@@ -397,8 +457,8 @@ function bindDetailEvents(market) {
   });
 
   const confirmButton = document.querySelector("#confirm-prediction");
-  confirmButton.addEventListener("click", () => {
-    if (market.estado !== "Abierto") return;
+  confirmButton?.addEventListener("click", () => {
+    if (!getMarketTiming(market).isOpen) return;
     handleConfirmPrediction(market);
   });
 }
@@ -420,8 +480,37 @@ function getPlacePredictionParams(market, estimate) {
 function normalizePlacePredictionResult(data) {
   const result = Array.isArray(data) ? data[0] : data;
   return {
-    prediction: result?.prediction || null,
-    profile: result?.profile || null
+    prediction: Array.isArray(result?.prediction) ? result.prediction[0] : result?.prediction || null,
+    profile: Array.isArray(result?.profile) ? result.profile[0] : result?.profile || null
+  };
+}
+
+function getAuthoritativeEstimate(prediction, fallbackEstimate) {
+  if (!prediction) return fallbackEstimate;
+
+  const amount = Number(prediction.karma_risked ?? fallbackEstimate.amount);
+  const baseBenefit = Number(
+    prediction.base_benefit_estimated ?? fallbackEstimate.baseBenefit
+  );
+  const bonus = Number(
+    prediction.difficulty_bonus_estimated ?? fallbackEstimate.bonus
+  );
+
+  return {
+    option: {
+      label: prediction.option_selected || fallbackEstimate.option.label,
+      percentage: Number(
+        prediction.entry_percentage ?? fallbackEstimate.option.percentage
+      ),
+      difficulty: prediction.option_difficulty || fallbackEstimate.option.difficulty
+    },
+    amount,
+    baseBenefit,
+    bonus,
+    returnTotal: amount + baseBenefit + bonus,
+    maxReturnTotal: amount * 10,
+    prestigeHit: Number(prediction.prestige_if_hit ?? fallbackEstimate.prestigeHit),
+    prestigeMiss: Number(prediction.prestige_if_miss ?? fallbackEstimate.prestigeMiss)
   };
 }
 
@@ -489,7 +578,7 @@ function validatePredictionBeforeSave(market, estimate, auth) {
     return getFriendlyPredictionError("INVALID_OPTION");
   }
 
-  if (market.estado !== "Abierto") {
+  if (!getMarketTiming(market).isOpen) {
     return getFriendlyPredictionError("MARKET_NOT_OPEN");
   }
 
@@ -531,6 +620,7 @@ async function refreshMarketAfterPrediction(market) {
   try {
     const refreshedMarket = await loadMarketFromSupabase(market.id);
     detailDataWarning = "";
+    currentMarketUsesSupabase = true;
     renderDetail(refreshedMarket);
     return refreshedMarket;
   } catch (_error) {
@@ -538,6 +628,81 @@ async function refreshMarketAfterPrediction(market) {
     renderDetail(market);
     return market;
   }
+}
+
+async function refreshMarketAfterClosure(market) {
+  try {
+    const refreshedMarket = await loadMarketFromSupabase(market.id);
+    detailDataWarning = "";
+    currentMarketUsesSupabase = true;
+    renderDetail(refreshedMarket);
+    return refreshedMarket;
+  } catch (_error) {
+    detailDataWarning = "El mercado se ha cerrado en pantalla, pero no se ha podido sincronizar de nuevo con Supabase.";
+    renderDetail(market);
+    return market;
+  }
+}
+
+function disablePredictionControls() {
+  document
+    .querySelectorAll("[data-option], #karma-amount, [data-amount], #confirm-prediction")
+    .forEach((control) => {
+      control.disabled = true;
+    });
+}
+
+function updateDetailClock(now = Date.now()) {
+  if (!currentMarket) return;
+
+  const timing = getMarketTiming(currentMarket, now);
+  const countdownNode = document.querySelector("[data-detail-market-countdown]");
+  const exactDateNode = document.querySelector("[data-detail-market-exact]");
+  const statusNode = document.querySelector("[data-detail-market-status]");
+  const disabledNoteNode = document.querySelector("[data-market-disabled-note]");
+
+  if (countdownNode) countdownNode.textContent = timing.label;
+  if (exactDateNode) {
+    exactDateNode.textContent = timing.exactLabel;
+    exactDateNode.hidden = !timing.exactLabel;
+  }
+  if (statusNode) {
+    statusNode.className = `status ${getStatusClass(timing.effectiveStatus)}`;
+    statusNode.textContent = getMarketStatusLabel(currentMarket, now);
+  }
+
+  if (timing.isOpen) return;
+
+  disablePredictionControls();
+  if (disabledNoteNode) {
+    disabledNoteNode.hidden = false;
+    disabledNoteNode.textContent = timing.isResolved
+      ? "Este mercado está resuelto. La participación queda desactivada."
+      : "Este mercado está cerrado y pendiente de resolución.";
+  }
+
+  if (
+    timing.isClosed &&
+    currentMarket.estado === "Abierto" &&
+    currentMarketUsesSupabase &&
+    !detailCloseRefreshRequested
+  ) {
+    detailCloseRefreshRequested = true;
+    currentMarket.estado = "Cerrado";
+    refreshMarketAfterClosure(currentMarket);
+  }
+}
+
+function startDetailClock() {
+  stopDetailClock();
+  updateDetailClock();
+  detailClockTimer = window.setInterval(updateDetailClock, 1000);
+}
+
+function stopDetailClock() {
+  if (detailClockTimer === null) return;
+  window.clearInterval(detailClockTimer);
+  detailClockTimer = null;
 }
 
 async function handleConfirmPrediction(market) {
@@ -561,11 +726,13 @@ async function handleConfirmPrediction(market) {
 
   try {
     const result = await placePredictionWithSupabase(market, estimate);
+    const authoritativeEstimate = getAuthoritativeEstimate(result.prediction, estimate);
     await syncProfileAfterPrediction(result.profile);
     predictionState.amount = clampKarma(predictionState.amount);
     const refreshedMarket = await refreshMarketAfterPrediction(market);
     openPredictionModal(refreshedMarket, "saved", "", {
-      estimate,
+      estimate: authoritativeEstimate,
+      prediction: result.prediction,
       remainingKarma: Number(result.profile?.karma)
     });
   } catch (error) {
@@ -576,19 +743,29 @@ async function handleConfirmPrediction(market) {
       return;
     }
 
+    let modalMarket = market;
+    if (errorKey === "MARKET_NOT_OPEN") {
+      detailCloseRefreshRequested = true;
+      market.estado = "Cerrado";
+      modalMarket = await refreshMarketAfterClosure(market);
+    }
+
     const mode = errorKey === "PREDICTION_ALREADY_EXISTS" ? "duplicate" : "error";
-    openPredictionModal(market, mode, getFriendlyPredictionError(errorKey), { estimate });
+    openPredictionModal(modalMarket, mode, getFriendlyPredictionError(errorKey), { estimate });
   } finally {
     const activeButton = document.querySelector("#confirm-prediction");
     if (activeButton) {
-      activeButton.disabled = currentMarket?.estado !== "Abierto" || getMaxKarma() < predictionRules.minKarma;
+      activeButton.disabled = !currentMarket || !getMarketTiming(currentMarket).isOpen || getMaxKarma() < predictionRules.minKarma;
       activeButton.textContent = originalLabel;
     }
   }
 }
 
 function openPredictionModal(market, mode = "saved", errorMessage = "", context = {}) {
-  const estimate = context.estimate || calculateEstimate(market);
+  const fallbackEstimate = context.estimate || calculateEstimate(market);
+  const estimate = mode === "saved"
+    ? getAuthoritativeEstimate(context.prediction, fallbackEstimate)
+    : fallbackEstimate;
   const isSaved = mode === "saved";
   const isDuplicate = mode === "duplicate";
   const title = isSaved
@@ -608,7 +785,11 @@ function openPredictionModal(market, mode = "saved", errorMessage = "", context 
     <dl class="estimate-list modal-estimate-list">
       <div><dt>Mercado</dt><dd>${market.pregunta}</dd></div>
       <div><dt>Opción elegida</dt><dd>${estimate.option.label}</dd></div>
+      <div><dt>Porcentaje de entrada</dt><dd>${estimate.option.percentage}%</dd></div>
+      <div><dt>Dificultad guardada</dt><dd>${estimate.option.difficulty}</dd></div>
       <div><dt>Karma arriesgado</dt><dd>${formatKarma(estimate.amount)}</dd></div>
+      <div><dt>Beneficio base guardado</dt><dd>${formatKarma(estimate.baseBenefit)}</dd></div>
+      <div><dt>Bonus de dificultad guardado</dt><dd>+${formatKarma(estimate.bonus)}</dd></div>
       ${isSaved ? `<div><dt>Karma restante</dt><dd>${formatKarma(context.remainingKarma)}</dd></div>` : ""}
       <div><dt>Prestigio posible si acierta</dt><dd>+${estimate.prestigeHit}</dd></div>
       <div><dt>Prestigio si falla</dt><dd>${estimate.prestigeMiss}</dd></div>
@@ -616,7 +797,7 @@ function openPredictionModal(market, mode = "saved", errorMessage = "", context 
   `;
 
   predictionModalWarning.textContent = isSaved
-    ? "Tu predicción se ha guardado y el Karma se ha descontado. El Prestigio se actualizará cuando el mercado se resuelva."
+    ? "Tu predicción se ha guardado y el Karma se ha descontado. Al resolverse, Oraklo abonará automáticamente el retorno que corresponda y actualizará el Prestigio."
     : isDuplicate
       ? "Puedes revisar tu predicción existente en Mis predicciones."
       : errorMessage || "No se ha guardado ningún dato nuevo.";
@@ -663,7 +844,10 @@ async function initializeMarketDetail() {
   try {
     const market = await loadMarketFromSupabase(marketId);
     detailDataWarning = "";
+    currentMarketUsesSupabase = true;
+    detailCloseRefreshRequested = false;
     renderDetail(market);
+    startDetailClock();
   } catch (error) {
     const fallbackMarket = getFallbackMarkets().find((item) => item.id === marketId);
 
@@ -673,9 +857,15 @@ async function initializeMarketDetail() {
     }
 
     detailDataWarning = "No se ha podido cargar este mercado desde Supabase. Mostrando mercado de prueba local.";
+    currentMarketUsesSupabase = false;
     renderDetail(fallbackMarket);
+    startDetailClock();
   }
 }
 
+window.addEventListener("pagehide", stopDetailClock);
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted && currentMarket) startDetailClock();
+});
 bindAuthProfileUpdates();
 initializeMarketDetail();

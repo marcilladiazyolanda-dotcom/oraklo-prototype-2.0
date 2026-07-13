@@ -5,6 +5,14 @@ const SUPABASE_PUBLIC_KEY = "sb_publishable_t7BNtHlrectl4bIKE7_3cA_JxH1CGY_";
 // Nunca usar service_role ni claves secretas en frontend.
 window.orakloSupabase = null;
 
+const ORAKLO_LOCAL_DATE_FORMATTER = new Intl.DateTimeFormat("es-ES", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit"
+});
+
 const supabaseFactory = window.supabase || globalThis.supabase;
 
 if (supabaseFactory && typeof supabaseFactory.createClient === "function") {
@@ -49,6 +57,80 @@ function toNumber(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function getValidTimestamp(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function formatOrakloLocalDate(value) {
+  const timestamp = getValidTimestamp(value);
+  if (timestamp === null) return "Fecha no disponible";
+
+  return ORAKLO_LOCAL_DATE_FORMATTER.format(new Date(timestamp));
+}
+
+function formatOrakloExactDate(value) {
+  const timestamp = getValidTimestamp(value);
+  return timestamp === null ? "" : `Fecha exacta: ${formatOrakloLocalDate(timestamp)}`;
+}
+
+function getOrakloEffectiveMarketStatus(market, now = Date.now()) {
+  const storedStatus = normalizeStatus(market?.estado || market?.status);
+  const resolutionResult = market?.resultadoResolucion || market?.resolution_result;
+
+  if (resolutionResult || storedStatus === "Resuelto") {
+    return "Resuelto";
+  }
+
+  const closeTimestamp = getValidTimestamp(market?.cierreFecha || market?.closes_at);
+  if (storedStatus === "Abierto" && closeTimestamp !== null && closeTimestamp <= now) {
+    return "Cerrado";
+  }
+
+  return storedStatus;
+}
+
+function getOrakloMarketTiming(market, now = Date.now()) {
+  const closeTimestamp = getValidTimestamp(market?.cierreFecha || market?.closes_at);
+  const effectiveStatus = getOrakloEffectiveMarketStatus(market, now);
+  const resolutionResult = market?.resultadoResolucion || market?.resolution_result || "";
+  const fallbackLabel = market?.cierre || market?.close_label || "Sin fecha de cierre";
+  const hasCloseDate = closeTimestamp !== null;
+  const remainingMs = hasCloseDate ? closeTimestamp - now : null;
+  let label = fallbackLabel;
+
+  if (effectiveStatus === "Resuelto") {
+    label = resolutionResult ? `Resuelto: ${resolutionResult}` : "Resuelto";
+  } else if (effectiveStatus === "Cerrado") {
+    label = "Cerrado · pendiente de resolución";
+  } else if (!hasCloseDate) {
+    label = fallbackLabel;
+  } else if (remainingMs >= 48 * 60 * 60 * 1000) {
+    const days = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
+    label = `Cierra en ${days} ${days === 1 ? "día" : "días"}`;
+  } else if (remainingMs >= 60 * 60 * 1000) {
+    label = `Cierra en ${Math.ceil(remainingMs / (60 * 60 * 1000))} h`;
+  } else if (remainingMs >= 60 * 1000) {
+    label = `Cierra en ${Math.ceil(remainingMs / (60 * 1000))} min`;
+  } else {
+    label = `Cierra en ${Math.max(1, Math.ceil(remainingMs / 1000))} s`;
+  }
+
+  return {
+    effectiveStatus,
+    label,
+    exactLabel: hasCloseDate ? formatOrakloExactDate(closeTimestamp) : "",
+    closeTimestamp,
+    remainingMs,
+    hasCloseDate,
+    isOpen: effectiveStatus === "Abierto",
+    isClosed: effectiveStatus === "Cerrado",
+    isResolved: effectiveStatus === "Resuelto",
+    hasExpired: hasCloseDate && closeTimestamp <= now
+  };
+}
+
 function mapMarketFromSupabase(row) {
   const actualPredictionsCount = toNumber(row.actual_predictions_count, toNumber(row.participants_count));
   const hasRealPredictions = actualPredictionsCount > 0;
@@ -68,6 +150,9 @@ function mapMarketFromSupabase(row) {
     comentarios: toNumber(row.comments_count),
     cierre: row.close_label,
     cierreFecha: row.closes_at,
+    resultadoResolucion: row.resolution_result,
+    notaResolucion: row.resolution_note,
+    fechaResolucion: row.resolved_at,
     descripcion: row.description,
     fuenteResolucion: row.resolution_source,
     criterioSi: row.yes_criteria,
@@ -84,3 +169,7 @@ function mapMarketFromSupabase(row) {
 }
 
 window.mapMarketFromSupabase = mapMarketFromSupabase;
+window.getOrakloEffectiveMarketStatus = getOrakloEffectiveMarketStatus;
+window.getOrakloMarketTiming = getOrakloMarketTiming;
+window.formatOrakloLocalDate = formatOrakloLocalDate;
+window.formatOrakloExactDate = formatOrakloExactDate;

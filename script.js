@@ -20,6 +20,11 @@ const stateFilters = [
 let markets = [];
 let seasonRankingUsers = [];
 let publicActivity = null;
+let marketClockTimer = null;
+let expiryRefreshPromise = null;
+let expiryRefreshPending = false;
+let marketsUseSupabase = false;
+const expirySyncRequested = new Set();
 
 const activeFilters = {
   category: "Todos",
@@ -53,6 +58,33 @@ function normalizeText(value) {
 function toNumber(value, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function getMarketTiming(market, now = Date.now()) {
+  return window.getOrakloMarketTiming(market, now);
+}
+
+function getMarketStatusLabel(market, now = Date.now()) {
+  const timing = getMarketTiming(market, now);
+  if (timing.isResolved && market.resultadoResolucion) {
+    return `Resuelto · ${market.resultadoResolucion}`;
+  }
+  return timing.effectiveStatus;
+}
+
+function createMarketTimingMarkup(market) {
+  const timing = getMarketTiming(market);
+  const encodedMarketId = encodeURIComponent(market.id);
+  const exactDateMarkup = timing.exactLabel
+    ? `<small class="market-exact-date" data-market-exact-date>${timing.exactLabel}</small>`
+    : '<small class="market-exact-date" data-market-exact-date hidden></small>';
+
+  return `
+    <div class="market-timing" data-market-timing data-market-id="${encodedMarketId}" data-effective-status="${timing.effectiveStatus}">
+      <p class="close-date" data-market-countdown>${timing.label}</p>
+      ${exactDateMarkup}
+    </div>
+  `;
 }
 
 function getMarketUrl(market) {
@@ -160,44 +192,50 @@ async function loadActivityFromSupabase() {
 function getFilteredMarkets() {
   const query = normalizeText(activeFilters.query.trim());
   let filtered = markets.filter((market) => {
+    const effectiveStatus = getMarketTiming(market).effectiveStatus;
     const matchesCategory =
       activeFilters.category === "Todos" || market.categoria === activeFilters.category;
-    const searchable = normalizeText(`${market.pregunta} ${market.categoria} ${market.estado}`);
+    const searchable = normalizeText(
+      `${market.pregunta} ${market.categoria} ${effectiveStatus} ${market.resultadoResolucion || ""}`
+    );
     const matchesQuery = query.length === 0 || searchable.includes(query);
 
     return matchesCategory && matchesQuery;
   });
 
   if (activeFilters.state === "activos") {
-    filtered = filtered.filter((market) => market.estado === "Abierto");
+    filtered = filtered.filter((market) => getMarketTiming(market).isOpen);
   }
 
   if (activeFilters.state === "cierran-pronto") {
     filtered = filtered
-      .filter((market) => market.estado === "Abierto")
-      .sort((a, b) => new Date(a.cierreFecha) - new Date(b.cierreFecha));
+      .filter((market) => {
+        const timing = getMarketTiming(market);
+        return timing.isOpen && timing.hasCloseDate;
+      })
+      .sort((a, b) => getMarketTiming(a).closeTimestamp - getMarketTiming(b).closeTimestamp);
   }
 
   if (activeFilters.state === "populares") {
     filtered = filtered
-      .filter((market) => market.estado === "Abierto")
+      .filter((market) => getMarketTiming(market).isOpen)
       .sort((a, b) => b.popularidad - a.popularidad);
   }
 
   if (activeFilters.state === "dificiles") {
     filtered = filtered
-      .filter((market) => market.estado === "Abierto" && isDifficultMarket(market))
+      .filter((market) => getMarketTiming(market).isOpen && isDifficultMarket(market))
       .sort((a, b) => b.popularidad - a.popularidad);
   }
 
   if (activeFilters.state === "nuevos") {
     filtered = filtered
-      .filter((market) => market.estado === "Abierto")
+      .filter((market) => getMarketTiming(market).isOpen)
       .sort((a, b) => new Date(b.fechaCreacion) - new Date(a.fechaCreacion));
   }
 
   if (activeFilters.state === "resueltos") {
-    filtered = filtered.filter((market) => market.estado === "Resuelto");
+    filtered = filtered.filter((market) => getMarketTiming(market).effectiveStatus === "Resuelto");
   }
 
   return filtered;
@@ -226,12 +264,13 @@ function createTrendMarkup(market) {
 }
 
 function createMarketCard(market) {
+  const timing = getMarketTiming(market);
   const card = document.createElement("article");
   card.className = "market-card";
   card.innerHTML = `
     <div class="market-card-header">
       <span class="tag">${market.categoria}</span>
-      <span class="status ${getStatusClass(market.estado)}">${market.estado}</span>
+      <span class="status ${getStatusClass(timing.effectiveStatus)}" data-market-status>${getMarketStatusLabel(market)}</span>
     </div>
     <h3>${market.pregunta}</h3>
     ${createTrendMarkup(market)}
@@ -241,7 +280,7 @@ function createMarketCard(market) {
       <span class="metric metric-users">${formatNumber(market.participantes)} participantes</span>
       <span class="metric metric-comments">${formatNumber(market.comentarios)} comentarios</span>
     </div>
-    <p class="close-date">${market.cierre}</p>
+    ${createMarketTimingMarkup(market)}
     <div class="card-actions">
       <a class="primary-button" href="${getMarketUrl(market)}">Ver mercado</a>
     </div>
@@ -371,13 +410,14 @@ function renderFeaturedMarket() {
   }
 
   featuredMarketNode.hidden = false;
+  const timing = getMarketTiming(market);
   featuredMarketNode.innerHTML = `
     <div class="featured-card">
       <div>
         <div class="featured-meta">
           <span class="tag">Mercado destacado</span>
           <span class="tag">${market.categoria}</span>
-          <span class="status ${getStatusClass(market.estado)}">${market.estado}</span>
+          <span class="status ${getStatusClass(timing.effectiveStatus)}" data-market-status>${getMarketStatusLabel(market)}</span>
         </div>
         <h2 class="featured-question">${market.pregunta}</h2>
         <p class="featured-copy">Mercado de prueba conectado a métricas reales de Supabase para medir criterio, anticipación y lectura del calendario de la industria.</p>
@@ -389,7 +429,7 @@ function renderFeaturedMarket() {
           <div class="stat"><span>Participantes</span><strong>${formatNumber(market.participantes)}</strong></div>
           <div class="stat"><span>Comentarios</span><strong>${formatNumber(market.comentarios)}</strong></div>
         </div>
-        <p class="close-date">${market.cierre}</p>
+        ${createMarketTimingMarkup(market)}
         <a class="primary-button" href="${getMarketUrl(market)}">Ver mercado</a>
       </div>
     </div>
@@ -427,6 +467,103 @@ function render() {
   renderActivity();
 }
 
+function updateMarketTimingNodes(now = Date.now()) {
+  const newlyExpiredMarkets = [];
+
+  document.querySelectorAll("[data-market-timing]").forEach((node) => {
+    const marketId = decodeURIComponent(node.dataset.marketId || "");
+    const market = markets.find((item) => item.id === marketId);
+    if (!market) return;
+
+    const timing = getMarketTiming(market, now);
+    const countdownNode = node.querySelector("[data-market-countdown]");
+    const exactDateNode = node.querySelector("[data-market-exact-date]");
+    const statusNode = node.closest(".market-card, .featured-card")?.querySelector("[data-market-status]");
+
+    if (countdownNode) countdownNode.textContent = timing.label;
+    if (exactDateNode) {
+      exactDateNode.textContent = timing.exactLabel;
+      exactDateNode.hidden = !timing.exactLabel;
+    }
+    if (statusNode) {
+      statusNode.className = `status ${getStatusClass(timing.effectiveStatus)}`;
+      statusNode.textContent = getMarketStatusLabel(market, now);
+    }
+
+    node.dataset.effectiveStatus = timing.effectiveStatus;
+
+    if (
+      market.estado === "Abierto" &&
+      timing.effectiveStatus === "Cerrado" &&
+      marketsUseSupabase &&
+      !expirySyncRequested.has(market.id)
+    ) {
+      newlyExpiredMarkets.push(market);
+    }
+  });
+
+  if (newlyExpiredMarkets.length > 0) {
+    handleExpiredMarkets(newlyExpiredMarkets);
+  }
+}
+
+async function refreshMarketsAfterExpiry() {
+  if (expiryRefreshPromise) {
+    expiryRefreshPending = true;
+    return expiryRefreshPromise;
+  }
+
+  expiryRefreshPromise = loadMarketsFromSupabase()
+    .then((freshMarkets) => {
+      markets = freshMarkets;
+      marketsUseSupabase = true;
+      setDataSourceWarning("");
+      render();
+    })
+    .catch(() => {
+      setDataSourceWarning("El mercado se ha cerrado en pantalla, pero no se ha podido sincronizar de nuevo con Supabase.");
+    })
+    .finally(() => {
+      expiryRefreshPromise = null;
+      if (expiryRefreshPending) {
+        expiryRefreshPending = false;
+        refreshMarketsAfterExpiry();
+      }
+    });
+
+  return expiryRefreshPromise;
+}
+
+function handleExpiredMarkets(expiredMarkets) {
+  let hasNewExpiry = false;
+
+  expiredMarkets.forEach((market) => {
+    if (expirySyncRequested.has(market.id)) return;
+    expirySyncRequested.add(market.id);
+    market.estado = "Cerrado";
+    hasNewExpiry = true;
+  });
+
+  if (!hasNewExpiry) return;
+  render();
+  refreshMarketsAfterExpiry();
+}
+
+function startMarketClock() {
+  if (marketClockTimer !== null) {
+    window.clearInterval(marketClockTimer);
+  }
+
+  updateMarketTimingNodes();
+  marketClockTimer = window.setInterval(updateMarketTimingNodes, 1000);
+}
+
+function stopMarketClock() {
+  if (marketClockTimer === null) return;
+  window.clearInterval(marketClockTimer);
+  marketClockTimer = null;
+}
+
 clearButton.addEventListener("click", () => {
   activeFilters.category = "Todos";
   activeFilters.state = "activos";
@@ -452,9 +589,11 @@ async function initializeMarkets() {
 
   if (marketsResult.status === "fulfilled") {
     markets = marketsResult.value;
+    marketsUseSupabase = true;
     setDataSourceWarning("");
   } else {
     markets = getFallbackMarkets();
+    marketsUseSupabase = false;
     setDataSourceWarning("No se han podido cargar los mercados desde Supabase. Mostrando mercados de prueba locales.");
   }
 
@@ -462,6 +601,11 @@ async function initializeMarkets() {
   publicActivity = activityResult.status === "fulfilled" ? activityResult.value : null;
 
   render();
+  startMarketClock();
 }
 
+window.addEventListener("pagehide", stopMarketClock);
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted && markets.length > 0) startMarketClock();
+});
 initializeMarkets();
