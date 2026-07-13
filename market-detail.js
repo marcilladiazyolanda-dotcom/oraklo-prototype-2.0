@@ -44,6 +44,7 @@ const prestigeTable = {
 };
 
 let detailDataWarning = "";
+let currentMarket = null;
 
 function formatNumber(value) {
   return new Intl.NumberFormat("es-ES").format(Number(value) || 0);
@@ -132,17 +133,24 @@ function getDifficultyFromPercentage(percentage) {
 }
 
 function getMaxKarma() {
-  const availableKarma = getDisplayUser().karma;
+  const availableKarma = Math.max(0, Math.floor(getDisplayUser().karma));
   return Math.max(
-    predictionRules.minKarma,
-    Math.min(availableKarma * predictionRules.maxNormalRatio, predictionRules.maxBeta)
+    0,
+    Math.min(
+      Math.floor(availableKarma * predictionRules.maxNormalRatio),
+      predictionRules.maxBeta,
+      availableKarma
+    )
   );
 }
 
 function clampKarma(value) {
+  const maxKarma = getMaxKarma();
+  if (maxKarma < predictionRules.minKarma) return maxKarma;
+
   const parsed = Number(value);
   if (Number.isNaN(parsed)) return predictionRules.minKarma;
-  return Math.min(Math.max(parsed, predictionRules.minKarma), getMaxKarma());
+  return Math.min(Math.max(Math.floor(parsed), predictionRules.minKarma), maxKarma);
 }
 
 function getOptionData(market, option) {
@@ -217,10 +225,22 @@ function renderNotFound() {
 }
 
 function renderDetail(market) {
+  currentMarket = market;
   const displayUser = getDisplayUser();
+  const maxKarma = getMaxKarma();
+  const hasEnoughKarma = maxKarma >= predictionRules.minKarma;
+  const participationDisabled = market.estado !== "Abierto" || !hasEnoughKarma;
+  predictionState.amount = hasEnoughKarma
+    ? clampKarma(predictionState.amount || predictionRules.minKarma)
+    : 0;
   const noPredictionsNotice = market.tienePredicciones
     ? ""
     : '<p class="market-empty-note">Todavía no hay predicciones en este mercado.</p>';
+  const disabledNote = market.estado !== "Abierto"
+    ? "Este mercado no está abierto. La participación queda desactivada."
+    : !hasEnoughKarma
+      ? "Tu saldo actual no permite alcanzar el mínimo de 10 Karma con el límite del 20 %."
+      : "";
 
   detailRoot.innerHTML = `
     <section class="detail-hero" aria-labelledby="detail-title">
@@ -245,7 +265,7 @@ function renderDetail(market) {
 
     <section class="detail-notices" aria-label="Avisos importantes">
       <p><strong>Privacidad:</strong> Tu predicción activa será privada hasta que el mercado se resuelva.</p>
-      <p><strong>Prototipo:</strong> Sin dinero real. El Karma no se descuenta todavía.</p>
+      <p><strong>Prototipo:</strong> Sin dinero real. El Karma se descuenta al confirmar una predicción. El Prestigio se actualizará cuando el mercado se resuelva.</p>
       <p><strong>Resolución:</strong> La resolución se basará en la fuente indicada.</p>
     </section>
 
@@ -263,20 +283,20 @@ function renderDetail(market) {
         <div class="karma-input-block">
           <label for="karma-amount">Cantidad de Karma</label>
           <div class="karma-input-row">
-            <input id="karma-amount" type="number" min="${predictionRules.minKarma}" max="${getMaxKarma()}" step="10" value="${predictionState.amount}">
-            <span class="input-limit">Máx. ${formatNumber(getMaxKarma())}</span>
+            <input id="karma-amount" type="number" min="${hasEnoughKarma ? predictionRules.minKarma : 0}" max="${maxKarma}" step="10" value="${predictionState.amount}"${hasEnoughKarma ? "" : " disabled"}>
+            <span class="input-limit">Máx. ${formatNumber(maxKarma)}</span>
           </div>
           <div class="quick-amounts" aria-label="Cantidades rápidas">
-            <button type="button" data-amount="10">10 K</button>
-            <button type="button" data-amount="50">50 K</button>
-            <button type="button" data-amount="100">100 K</button>
-            <button type="button" data-amount="max">Máx.</button>
+            <button type="button" data-amount="10"${maxKarma < 10 ? " disabled" : ""}>10 K</button>
+            <button type="button" data-amount="50"${maxKarma < 50 ? " disabled" : ""}>50 K</button>
+            <button type="button" data-amount="100"${maxKarma < 100 ? " disabled" : ""}>100 K</button>
+            <button type="button" data-amount="max"${hasEnoughKarma ? "" : " disabled"}>Máx.</button>
           </div>
         </div>
 
         <div class="estimate-card" id="estimate-card"></div>
-        <button class="primary-button confirm-button" id="confirm-prediction" type="button"${market.estado !== "Abierto" ? " disabled" : ""}>Confirmar predicción</button>
-        ${market.estado !== "Abierto" ? '<p class="disabled-note">Este mercado no está abierto. La participación queda desactivada.</p>' : ""}
+        <button class="primary-button confirm-button" id="confirm-prediction" type="button"${participationDisabled ? " disabled" : ""}>Confirmar predicción</button>
+        ${disabledNote ? `<p class="disabled-note">${disabledNote}</p>` : ""}
       </aside>
 
       <section class="detail-main">
@@ -350,7 +370,7 @@ function renderEstimate(market) {
       <div><dt>Prestigio posible si acierta</dt><dd>+${estimate.prestigeHit}</dd></div>
       <div><dt>Prestigio si falla</dt><dd>${estimate.prestigeMiss}</dd></div>
     </dl>
-    <p class="privacy-note">La predicción activa será privada hasta resolución. El Karma no se descuenta todavía en este prototipo.</p>
+    <p class="privacy-note">La predicción activa será privada hasta resolución. El Karma se descontará al confirmar. El Prestigio se actualizará cuando el mercado se resuelva.</p>
   `;
 }
 
@@ -383,82 +403,192 @@ function bindDetailEvents(market) {
   });
 }
 
-function isDuplicatePredictionError(error) {
-  const message = `${error?.message || ""} ${error?.details || ""} ${error?.hint || ""}`.toLowerCase();
-  return (
-    error?.code === "23505" ||
-    message.includes("duplicate") ||
-    message.includes("unique") ||
-    message.includes("already") ||
-    message.includes("ya tienes")
-  );
-}
-
-function getPredictionPayload(market) {
-  const estimate = calculateEstimate(market);
-
+function getPlacePredictionParams(market, estimate) {
   return {
-    market_id: market.id,
-    option_selected: estimate.option.label,
-    entry_percentage: estimate.option.percentage,
-    option_difficulty: estimate.option.difficulty,
-    karma_risked: estimate.amount,
-    base_benefit_estimated: Math.round(estimate.baseBenefit),
-    difficulty_bonus_estimated: Math.round(estimate.bonus),
-    prestige_if_hit: estimate.prestigeHit,
-    prestige_if_miss: estimate.prestigeMiss,
-    status: "Activa"
+    market_id_input: market.id,
+    option_selected_input: estimate.option.label,
+    entry_percentage_input: Math.round(estimate.option.percentage),
+    option_difficulty_input: estimate.option.difficulty,
+    karma_risked_input: Math.round(estimate.amount),
+    base_benefit_estimated_input: Number(estimate.baseBenefit.toFixed(2)),
+    difficulty_bonus_estimated_input: Number(estimate.bonus.toFixed(2)),
+    prestige_if_hit_input: estimate.prestigeHit,
+    prestige_if_miss_input: estimate.prestigeMiss
   };
 }
 
-async function savePredictionToSupabase(market) {
+function normalizePlacePredictionResult(data) {
+  const result = Array.isArray(data) ? data[0] : data;
+  return {
+    prediction: result?.prediction || null,
+    profile: result?.profile || null
+  };
+}
+
+async function placePredictionWithSupabase(market, estimate) {
   if (!window.orakloSupabase) {
-    throw new Error("Supabase no está disponible.");
+    throw new Error("SUPABASE_UNAVAILABLE");
   }
 
-  const payload = getPredictionPayload(market);
-  const { data, error } = await window.orakloSupabase
-    .from("predictions")
-    .insert(payload)
-    .select("*")
-    .single();
+  const { data, error } = await window.orakloSupabase.rpc(
+    "place_prediction",
+    getPlacePredictionParams(market, estimate)
+  );
 
   if (error) {
     throw error;
   }
 
-  return data;
+  return normalizePlacePredictionResult(data);
+}
+
+function getPredictionErrorKey(error) {
+  const errorText = [error?.code, error?.message, error?.details, error?.hint]
+    .filter(Boolean)
+    .join(" ")
+    .toUpperCase();
+  const knownErrors = [
+    "PREDICTION_ALREADY_EXISTS",
+    "INSUFFICIENT_KARMA",
+    "MAX_KARMA_EXCEEDED",
+    "MARKET_NOT_OPEN",
+    "AUTH_REQUIRED",
+    "PROFILE_NOT_FOUND",
+    "MARKET_NOT_FOUND",
+    "MIN_KARMA_REQUIRED",
+    "INVALID_OPTION",
+    "SUPABASE_UNAVAILABLE"
+  ];
+
+  const knownError = knownErrors.find((key) => errorText.includes(key));
+  if (knownError) return knownError;
+  if (error?.code === "23505") return "PREDICTION_ALREADY_EXISTS";
+  return "UNKNOWN";
+}
+
+function getFriendlyPredictionError(errorKey) {
+  const messages = {
+    PREDICTION_ALREADY_EXISTS: "Ya tienes una predicción registrada en este mercado.",
+    INSUFFICIENT_KARMA: "No tienes Karma suficiente para esta predicción.",
+    MAX_KARMA_EXCEEDED: "La cantidad supera el máximo permitido para tu saldo actual.",
+    MARKET_NOT_OPEN: "Este mercado ya no está abierto.",
+    AUTH_REQUIRED: "Inicia sesión para confirmar tu predicción.",
+    PROFILE_NOT_FOUND: "No se ha encontrado tu perfil. Cierra sesión y vuelve a entrar.",
+    MARKET_NOT_FOUND: "Este mercado ya no está disponible.",
+    MIN_KARMA_REQUIRED: "La cantidad mínima por predicción es 10 Karma.",
+    INVALID_OPTION: "Elige Sí o No antes de confirmar tu predicción.",
+    SUPABASE_UNAVAILABLE: "No se puede conectar con Supabase ahora mismo. Inténtalo de nuevo en unos instantes.",
+    UNKNOWN: "No se ha podido confirmar la predicción. Inténtalo de nuevo."
+  };
+
+  return messages[errorKey] || messages.UNKNOWN;
+}
+
+function validatePredictionBeforeSave(market, estimate, auth) {
+  if (!predictionState.option || !["si", "no"].includes(predictionState.option)) {
+    return getFriendlyPredictionError("INVALID_OPTION");
+  }
+
+  if (market.estado !== "Abierto") {
+    return getFriendlyPredictionError("MARKET_NOT_OPEN");
+  }
+
+  const amount = Number(estimate.amount);
+  if (!Number.isFinite(amount) || amount < predictionRules.minKarma) {
+    return getFriendlyPredictionError("MIN_KARMA_REQUIRED");
+  }
+
+  const availableKarma = Math.max(0, Math.floor(Number(auth?.profile?.karma) || 0));
+  const maxAllowed = Math.min(
+    Math.floor(availableKarma * predictionRules.maxNormalRatio),
+    predictionRules.maxBeta
+  );
+
+  if (amount > availableKarma) {
+    return getFriendlyPredictionError("INSUFFICIENT_KARMA");
+  }
+
+  if (amount > maxAllowed) {
+    return getFriendlyPredictionError("MAX_KARMA_EXCEEDED");
+  }
+
+  return "";
+}
+
+async function syncProfileAfterPrediction(profile) {
+  if (profile && typeof window.orakloAuth?.applyProfileSnapshot === "function") {
+    window.orakloAuth.applyProfileSnapshot(profile);
+  }
+
+  if (typeof window.refreshOrakloProfile === "function") {
+    return window.refreshOrakloProfile();
+  }
+
+  return window.orakloAuth?.refreshProfile?.();
+}
+
+async function refreshMarketAfterPrediction(market) {
+  try {
+    const refreshedMarket = await loadMarketFromSupabase(market.id);
+    detailDataWarning = "";
+    renderDetail(refreshedMarket);
+    return refreshedMarket;
+  } catch (_error) {
+    detailDataWarning = "La predicción se ha guardado, pero las métricas no han podido actualizarse todavía.";
+    renderDetail(market);
+    return market;
+  }
 }
 
 async function handleConfirmPrediction(market) {
   const auth = await window.orakloAuth?.requireAuth({
-    message: "Inicia sesión para guardar tu predicción."
+    message: "Inicia sesión para confirmar tu predicción."
   });
 
   if (!auth) return;
 
+  const estimate = calculateEstimate(market);
+  const validationMessage = validatePredictionBeforeSave(market, estimate, auth);
+  if (validationMessage) {
+    openPredictionModal(market, "error", validationMessage, { estimate });
+    return;
+  }
+
   const confirmButton = document.querySelector("#confirm-prediction");
   const originalLabel = confirmButton.textContent;
   confirmButton.disabled = true;
-  confirmButton.textContent = "Guardando...";
+  confirmButton.textContent = "Confirmando...";
 
   try {
-    await savePredictionToSupabase(market);
-    openPredictionModal(market, "saved");
+    const result = await placePredictionWithSupabase(market, estimate);
+    await syncProfileAfterPrediction(result.profile);
+    predictionState.amount = clampKarma(predictionState.amount);
+    const refreshedMarket = await refreshMarketAfterPrediction(market);
+    openPredictionModal(refreshedMarket, "saved", "", {
+      estimate,
+      remainingKarma: Number(result.profile?.karma)
+    });
   } catch (error) {
-    if (isDuplicatePredictionError(error)) {
-      openPredictionModal(market, "duplicate");
-    } else {
-      openPredictionModal(market, "error", error.message);
+    const errorKey = getPredictionErrorKey(error);
+
+    if (errorKey === "AUTH_REQUIRED") {
+      window.orakloAuth?.openAuthModal(getFriendlyPredictionError(errorKey));
+      return;
     }
+
+    const mode = errorKey === "PREDICTION_ALREADY_EXISTS" ? "duplicate" : "error";
+    openPredictionModal(market, mode, getFriendlyPredictionError(errorKey), { estimate });
   } finally {
-    confirmButton.disabled = market.estado !== "Abierto";
-    confirmButton.textContent = originalLabel;
+    const activeButton = document.querySelector("#confirm-prediction");
+    if (activeButton) {
+      activeButton.disabled = currentMarket?.estado !== "Abierto" || getMaxKarma() < predictionRules.minKarma;
+      activeButton.textContent = originalLabel;
+    }
   }
 }
 
-function openPredictionModal(market, mode = "saved", errorMessage = "") {
-  const estimate = calculateEstimate(market);
+function openPredictionModal(market, mode = "saved", errorMessage = "", context = {}) {
+  const estimate = context.estimate || calculateEstimate(market);
   const isSaved = mode === "saved";
   const isDuplicate = mode === "duplicate";
   const title = isSaved
@@ -479,13 +609,14 @@ function openPredictionModal(market, mode = "saved", errorMessage = "") {
       <div><dt>Mercado</dt><dd>${market.pregunta}</dd></div>
       <div><dt>Opción elegida</dt><dd>${estimate.option.label}</dd></div>
       <div><dt>Karma arriesgado</dt><dd>${formatKarma(estimate.amount)}</dd></div>
+      ${isSaved ? `<div><dt>Karma restante</dt><dd>${formatKarma(context.remainingKarma)}</dd></div>` : ""}
       <div><dt>Prestigio posible si acierta</dt><dd>+${estimate.prestigeHit}</dd></div>
       <div><dt>Prestigio si falla</dt><dd>${estimate.prestigeMiss}</dd></div>
     </dl>
   `;
 
   predictionModalWarning.textContent = isSaved
-    ? "Tu predicción se ha guardado en Supabase. El Karma no se descuenta todavía y el Prestigio se actualizará cuando el mercado se resuelva."
+    ? "Tu predicción se ha guardado y el Karma se ha descontado. El Prestigio se actualizará cuando el mercado se resuelva."
     : isDuplicate
       ? "Puedes revisar tu predicción existente en Mis predicciones."
       : errorMessage || "No se ha guardado ningún dato nuevo.";
@@ -510,6 +641,14 @@ document.addEventListener("keydown", (event) => {
     closePredictionModal();
   }
 });
+
+function bindAuthProfileUpdates() {
+  window.orakloAuth?.onChange?.((auth) => {
+    if (!auth.ready || !currentMarket) return;
+    predictionState.amount = clampKarma(predictionState.amount);
+    renderDetail(currentMarket);
+  });
+}
 
 async function initializeMarketDetail() {
   const marketId = getQueryMarketId();
@@ -538,4 +677,5 @@ async function initializeMarketDetail() {
   }
 }
 
+bindAuthProfileUpdates();
 initializeMarketDetail();

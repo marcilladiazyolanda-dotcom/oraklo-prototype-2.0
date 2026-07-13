@@ -92,7 +92,7 @@ function updateHeaderSessionState() {
   document.body.classList.toggle("is-authenticated", isAuthenticated);
 }
 
-async function loadProfileForUser(user) {
+async function loadProfileForUser(user, fallbackProfile = null) {
   if (!authClient || !user) {
     return { ...guestProfile };
   }
@@ -104,7 +104,7 @@ async function loadProfileForUser(user) {
     .maybeSingle();
 
   if (error) {
-    return mapProfileFromSupabase(null, user);
+    return mapProfileFromSupabase(fallbackProfile, user);
   }
 
   return mapProfileFromSupabase(data, user);
@@ -337,7 +337,18 @@ async function refreshProfile() {
     return getCurrentAuthState();
   }
 
-  authState.profile = await loadProfileForUser(authState.user);
+  authState.profile = await loadProfileForUser(authState.user, authState.profile);
+  updateHeaderSessionState();
+  notifyAuthListeners();
+  return getCurrentAuthState();
+}
+
+function applyProfileSnapshot(profileRow) {
+  if (!authState.user || !profileRow) {
+    return getCurrentAuthState();
+  }
+
+  authState.profile = mapProfileFromSupabase(profileRow, authState.user);
   updateHeaderSessionState();
   notifyAuthListeners();
   return getCurrentAuthState();
@@ -374,7 +385,10 @@ window.orakloAuth = {
   closeAuthModal,
   requireAuth,
   refreshProfile,
+  applyProfileSnapshot,
   signOut
 };
+
+window.refreshOrakloProfile = refreshProfile;
 
 initializeAuth();
