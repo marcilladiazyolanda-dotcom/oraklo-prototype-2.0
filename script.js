@@ -364,14 +364,16 @@ function createMarketCard(market) {
 }
 
 function getUserProfileUrl(user) {
-  return `ranking.html#ranking-user-${encodeURIComponent(user.id || user.username)}`;
+  return user.id
+    ? `profile.html?id=${encodeURIComponent(user.id)}`
+    : "ranking.html";
 }
 
 function createLeaderboardRow(user, index) {
   const link = document.createElement("a");
   link.className = "leaderboard-row";
   link.href = getUserProfileUrl(user);
-  link.setAttribute("aria-label", `Ver posición de ${user.username}`);
+  link.setAttribute("aria-label", `Abrir el perfil predictivo de ${user.username}`);
   const position = user.posicion || index + 1;
   link.innerHTML = `
     <span class="rank-position">${position}</span>

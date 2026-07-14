@@ -290,6 +290,9 @@ function bindAuthUi() {
     const openButton = event.target.closest("[data-auth-open]");
     const signOutButton = event.target.closest("[data-auth-signout]");
     const modeButton = event.target.closest("[data-auth-mode]");
+    const profileButton = event.target.closest(
+      "[data-auth-state='user'][data-profile-username]"
+    );
 
     if (openButton) {
       openAuthModal(openButton.dataset.authMessage || "");
@@ -301,6 +304,10 @@ function bindAuthUi() {
 
     if (modeButton) {
       setAuthMode(modeButton.dataset.authMode);
+    }
+
+    if (profileButton && authState.profile?.id) {
+      window.location.href = `profile.html?id=${encodeURIComponent(authState.profile.id)}`;
     }
   });
 

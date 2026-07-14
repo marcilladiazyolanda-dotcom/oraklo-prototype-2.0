@@ -27,6 +27,17 @@ Las claves se configuran únicamente como secretos `GEMINI_API_KEY` y `TAVILY_AP
 - La configuración inicial exige 100 usuarios registrados y una activación administrativa explícita.
 - Al empezar una temporada solo se reinicia su clasificación competitiva; el Prestigio histórico y el rango se conservan.
 
+## Currículum predictivo
+
+- `profile.html?id=<uuid>` muestra el perfil público real de un predictor.
+- Incluye Prestigio, rango, posición global, precisión, aciertos, fallos, racha actual, mejor racha y especialidades.
+- El historial público contiene exclusivamente predicciones ya liquidadas y enlaza a la resolución con sus fuentes.
+- El Karma disponible y todas las predicciones activas o pendientes continúan siendo privados.
+- Las anulaciones aparecen en el historial, pero no cuentan para la precisión, las rachas ni las especialidades.
+- Las insignias están preparadas con estados bloqueado/conseguido; sus emblemas visuales definitivos se diseñarán durante el pulido final.
+- La posición de temporada muestra «Temporada no iniciada» mientras el sistema siga desactivado.
+- Las tres RPC públicas usan una lista cerrada de campos, `search_path` vacío y permisos explícitos. Es intencionado que puedan atravesar RLS para publicar solo el currículum y los resultados liquidados; nunca devuelven el saldo actual ni filas activas.
+
 Cuando llegue el lanzamiento, el umbral y la duración se pueden ajustar desde el SQL Editor con una cuenta administrativa. Esta llamada deja preparada la activación; la temporada solo comenzará cuando también se alcance el número indicado de perfiles:
 
 ```sql

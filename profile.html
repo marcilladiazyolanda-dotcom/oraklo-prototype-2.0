@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Oraklo | Perfil predictivo</title>
+  <meta name="description" content="Currículum predictivo público de un usuario de Oraklo.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar" aria-label="Cabecera principal">
+      <a class="brand" href="index.html" aria-label="Oraklo inicio">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">Oraklo</span>
+      </a>
+
+      <nav class="detail-nav" aria-label="Navegación del perfil">
+        <a href="index.html">Explorar mercados</a>
+        <a href="ranking.html">Clasificación</a>
+        <a href="my-predictions.html">Mis predicciones</a>
+        <a href="admin-resolution.html" data-admin-only hidden>Resolver mercados</a>
+      </nav>
+
+      <div class="topbar-actions detail-user-state" role="group" aria-label="Estado del usuario">
+        <span class="karma-pill" role="status" aria-label="Karma disponible: 1.000">
+          <span class="karma-symbol" aria-hidden="true">K</span>
+          <strong data-profile-karma>1.000</strong>
+        </span>
+        <span class="user-stat-pill">Prestigio: <strong data-profile-prestige>0</strong></span>
+        <span class="user-stat-pill">Rango: <strong data-profile-rank>Observador</strong></span>
+        <button class="profile-button" type="button" data-auth-open data-auth-state="guest" data-profile-username aria-label="Entrar en Oraklo">Entrar</button>
+        <button class="profile-button" type="button" data-auth-state="user" data-profile-username hidden aria-label="Usuario @Usuario">@Usuario</button>
+        <button class="logout-button" type="button" data-auth-signout data-auth-state="user" hidden>Salir</button>
+      </div>
+    </header>
+
+    <main class="profile-page">
+      <section id="profile-root" aria-live="polite">
+        <div class="profile-loading-card">
+          <span class="profile-loading-mark" aria-hidden="true"></span>
+          <p class="eyebrow">Currículum predictivo</p>
+          <h1>Cargando perfil...</h1>
+          <p>Calculando estadísticas reales desde las predicciones resueltas.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabaseClient.js"></script>
+  <script src="auth.js"></script>
+  <script src="profile.js"></script>
+</body>
+</html>

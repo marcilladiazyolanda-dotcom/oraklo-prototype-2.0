@@ -259,6 +259,7 @@ function renderMySummary() {
       <span style="width: ${progress.percentage}%"></span>
     </div>
     <p class="ranking-progress-copy">${progressText}</p>
+    <a class="secondary-button my-profile-link" href="profile.html?id=${encodeURIComponent(auth.user.id)}">Abrir mi currículum predictivo</a>
   `;
 }
 
@@ -267,9 +268,10 @@ function createRankingRow(row, mode) {
   const isCurrentUser = Boolean(currentUserId && currentUserId === row.id);
   const prestigeLabel = mode === "season" ? "Prestigio de temporada" : "Prestigio";
   const podiumClass = row.position <= 3 ? ` is-podium position-${row.position}` : "";
+  const profileUrl = `profile.html?id=${encodeURIComponent(row.id)}`;
 
   return `
-    <article class="ranking-row${podiumClass}${isCurrentUser ? " is-current-user" : ""}" id="ranking-user-${escapeRankingHtml(row.id || row.position)}">
+    <a class="ranking-row${podiumClass}${isCurrentUser ? " is-current-user" : ""}" id="ranking-user-${escapeRankingHtml(row.id || row.position)}" href="${profileUrl}" aria-label="Abrir el perfil predictivo de ${escapeRankingHtml(row.username)}">
       <span class="ranking-position">${row.position}</span>
       <div class="ranking-identity">
         <strong>${escapeRankingHtml(row.username)}</strong>
@@ -287,7 +289,7 @@ function createRankingRow(row, mode) {
         <strong>${formatRankingPercent(row.accuracy)}</strong>
         <span>Precisión</span>
       </div>
-    </article>
+    </a>
   `;
 }
 
