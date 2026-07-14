@@ -161,6 +161,45 @@ window.ORAKLO_MARKETS = [
     fechaCreacion: "2026-06-26"
   },
   {
+    id: "state-of-play-junio-2026-wolverine",
+    pregunta: "¿Apareció Marvel’s Wolverine en el State of Play del 2 de junio de 2026?",
+    categoria: "Eventos",
+    estado: "Resuelto",
+    porcentajeSi: 50,
+    porcentajeNo: 50,
+    dificultad: "Fácil",
+    karmaTotal: 0,
+    participantes: 0,
+    comentarios: 0,
+    cierre: "Resuelto",
+    cierreFecha: "2026-06-02T23:59:00Z",
+    resultadoResolucion: "Sí",
+    notaResolucion: "Marvel's Wolverine apareció como el anuncio principal del State of Play del 2 de junio de 2026. El evento incluyó gameplay, detalles de la historia y la confirmación de su fecha de lanzamiento.",
+    fechaResolucion: "2026-07-14T19:33:40.360Z",
+    fuentesResolucion: [
+      {
+        title: "State of Play June 2026: todos los anuncios y tráileres",
+        url: "https://blog.playstation.com/2026/06/02/state-of-play-june-2026-all-announcements-trailers/",
+        citedText: "El resumen oficial incluye Marvel’s Wolverine entre los contenidos destacados del evento."
+      },
+      {
+        title: "Marvel’s Wolverine: nuevo gameplay y detalles de la historia",
+        url: "https://blog.playstation.com/2026/06/02/marvels-wolverine-new-gameplay-story-details-from-state-of-play/",
+        citedText: "PlayStation e Insomniac detallan el gameplay presentado durante el State of Play."
+      }
+    ],
+    modeloResolucionIa: "gemini-3-flash-preview",
+    fechaAnalisisIa: "2026-07-14T19:19:47.703Z",
+    descripcion: "Mercado de prueba sobre la aparición de Marvel’s Wolverine en la emisión concreta de State of Play celebrada el 2 de junio de 2026.",
+    fuenteResolucion: "Resumen oficial del State of Play de junio de 2026 y artículo oficial de Marvel’s Wolverine publicados en PlayStation Blog.",
+    criterioSi: "Gana el Sí si la emisión o su resumen oficial incluyen un segmento, tráiler, gameplay o anuncio de Marvel’s Wolverine.",
+    criterioNo: "Gana el No si Marvel’s Wolverine no aparece en la emisión ni en el listado oficial de anuncios del evento.",
+    casoDudoso: "No cuentan noticias anteriores o posteriores que no formen parte de esa emisión concreta.",
+    destacado: false,
+    popularidad: 0,
+    fechaCreacion: "2026-05-15"
+  },
+  {
     id: "state-of-play-este-mes",
     pregunta: "¿PlayStation anunciará un nuevo State of Play este mes?",
     categoria: "Eventos",

@@ -4,13 +4,15 @@ Prototipo MVP de Oraklo: red social competitiva de predicciones gaming basada en
 ## Resolución asistida por IA
 
 - `admin-resolution.html` es el panel privado de revisión de mercados cerrados.
-- `analyze-market-resolution` consulta Gemini con Google Search y solo propone un resultado con fuentes.
+- `analyze-market-resolution` usa Tavily Search en modo básico para recopilar fuentes anteriores al cierre y Gemini 3 Flash Preview para analizarlas.
 - `approve-market-resolution` exige una administradora autenticada y ejecuta la resolución atómica en Supabase.
 - La IA nunca puede resolver por sí sola: una persona debe revisar las fuentes, elegir el resultado y confirmar la liquidación.
-- Si Gemini no está disponible, el panel permite una resolución manual protegida que también exige fuentes HTTPS y revisión humana.
+- Si la ficha usa referencias como «último» o «próximo» sin identificar una fecha concreta, el sistema propone `Anulado`, explica la ambigüedad y usa la ficha original como evidencia. La anulación sigue necesitando confirmación humana.
+- Si el mercado está definido pero la búsqueda no encuentra pruebas suficientes, muestra `No concluyente` sin convertirlo en un error técnico ni habilitar una resolución insegura.
+- Si Tavily o Gemini no están disponibles, el panel permite una resolución manual protegida que también exige fuentes HTTPS y revisión humana.
 - Las fuentes aprobadas y la explicación quedan visibles en la ficha pública del mercado.
 
-La clave de Gemini se configura únicamente como secreto `GEMINI_API_KEY` de las Edge Functions. Nunca debe añadirse al frontend ni al repositorio.
+Las claves se configuran únicamente como secretos `GEMINI_API_KEY` y `TAVILY_API_KEY` de las Edge Functions. Nunca deben añadirse al frontend ni al repositorio. Cada análisis normal realiza tres búsquedas básicas de Tavily y una petición de texto a Gemini; los límites gratuitos dependen de cada proveedor.
 
 ## Rangos y clasificación
 

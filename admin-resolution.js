@@ -170,7 +170,7 @@ function createAdminAnalysisEmptyMarkup() {
     <div class="admin-analysis-empty">
       <p class="eyebrow">2 · Investigar</p>
       <h2>Esperando análisis</h2>
-      <p>Gemini buscará información actual, aplicará la fecha de cierre y devolverá motivos con enlaces verificables.</p>
+      <p>Tavily buscará fuentes anteriores al cierre y Gemini 3 aplicará los criterios del mercado para proponer una resolución.</p>
     </div>
   `;
 }
@@ -252,6 +252,11 @@ function createAdminAnalysisMarkup(response, market) {
     ? analysis.proposed_result
     : "";
   const isAlreadyResolved = Boolean(market?.resolution_result);
+  const proposalEyebrow = response.analysis_kind === "definition_check"
+    ? "2 · Control de definición"
+    : response.analysis_kind === "no_evidence"
+    ? "2 · Evidencia insuficiente"
+    : "2 · Propuesta de la IA";
 
   const reasonItems = reasons.length
     ? reasons.map((reason) => `<li>${escapeAdminHtml(reason)}</li>`).join("")
@@ -265,7 +270,7 @@ function createAdminAnalysisMarkup(response, market) {
 
   return `
     <div class="admin-analysis-result">
-      <p class="eyebrow">2 · Propuesta de la IA</p>
+      <p class="eyebrow">${proposalEyebrow}</p>
       <div class="admin-proposal-heading">
         <div>
           <span>Resultado propuesto</span>
