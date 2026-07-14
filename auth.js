@@ -4,7 +4,19 @@ const guestProfile = {
   username: "Invitado",
   karma: 1000,
   prestige: 0,
-  rank: "Observador"
+  rank: "Observador",
+  bio: "",
+  favoriteCategory: null,
+  avatarKey: "oracle",
+  profileTheme: "aurora"
+};
+
+const authAvatarMarks = {
+  oracle: "◇",
+  spark: "✦",
+  hex: "⬡",
+  pulse: "◉",
+  delta: "△"
 };
 
 const authState = {
@@ -17,6 +29,7 @@ const authState = {
 const authListeners = new Set();
 let authReadyResolver;
 let authMode = "login";
+let userMenuOpen = false;
 
 const authReady = new Promise((resolve) => {
   authReadyResolver = resolve;
@@ -33,8 +46,25 @@ function mapProfileFromSupabase(row, user) {
     username: row?.username || user?.user_metadata?.username || user?.email || "@Usuario",
     karma: Number(row?.karma ?? guestProfile.karma),
     prestige: Number(row?.prestige ?? row?.prestigio ?? guestProfile.prestige),
-    rank: row?.rank || row?.rango || guestProfile.rank
+    rank: row?.rank || row?.rango || guestProfile.rank,
+    bio: row?.bio || "",
+    favoriteCategory: row?.favorite_category || null,
+    avatarKey: row?.avatar_key || guestProfile.avatarKey,
+    profileTheme: row?.profile_theme || guestProfile.profileTheme
   };
+}
+
+function escapeAuthHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function getAuthAvatarMark(profile) {
+  return authAvatarMarks[profile?.avatarKey] || authAvatarMarks.oracle;
 }
 
 function getCurrentAuthState() {
@@ -52,6 +82,111 @@ function notifyAuthListeners() {
   const currentState = getCurrentAuthState();
   authListeners.forEach((listener) => listener(currentState));
   window.dispatchEvent(new CustomEvent("oraklo:auth-changed", { detail: currentState }));
+}
+
+function injectUserMenu() {
+  if (document.querySelector("#oraklo-user-menu")) return;
+
+  const menu = document.createElement("aside");
+  menu.id = "oraklo-user-menu";
+  menu.className = "user-menu";
+  menu.setAttribute("role", "menu");
+  menu.setAttribute("aria-label", "Opciones de usuario");
+  menu.hidden = true;
+  document.body.appendChild(menu);
+}
+
+function renderUserMenu() {
+  injectUserMenu();
+  const menu = document.querySelector("#oraklo-user-menu");
+  const profile = authState.profile || guestProfile;
+  const profileId = profile.id ? encodeURIComponent(profile.id) : "";
+  const isAdmin = authState.user?.app_metadata?.oraklo_admin === true;
+
+  if (!authState.session || !profile.id) {
+    menu.hidden = true;
+    userMenuOpen = false;
+    return;
+  }
+
+  menu.className = `user-menu user-menu-theme-${profile.profileTheme || "aurora"}`;
+  menu.innerHTML = `
+    <div class="user-menu-summary">
+      <span class="user-menu-avatar" aria-hidden="true">${escapeAuthHtml(getAuthAvatarMark(profile))}</span>
+      <div>
+        <strong>${escapeAuthHtml(profile.username)}</strong>
+        <span>${escapeAuthHtml(profile.rank)} · ${formatAuthNumber(profile.prestige)} Prestigio</span>
+      </div>
+    </div>
+    <nav class="user-menu-links" aria-label="Cuenta Oraklo">
+      <a role="menuitem" href="profile.html?id=${profileId}">
+        <span aria-hidden="true">◫</span>
+        <span><strong>Mi perfil</strong><small>Ver tu currículum predictivo</small></span>
+      </a>
+      <a role="menuitem" href="profile.html?id=${profileId}&edit=1">
+        <span aria-hidden="true">✎</span>
+        <span><strong>Personalizar perfil</strong><small>Username, biografía y estilo</small></span>
+      </a>
+      <a role="menuitem" href="my-predictions.html">
+        <span aria-hidden="true">◎</span>
+        <span><strong>Mis predicciones</strong><small>Activas e historial personal</small></span>
+      </a>
+      <a role="menuitem" href="ranking.html">
+        <span aria-hidden="true">⌁</span>
+        <span><strong>Clasificación</strong><small>Posición, rangos y temporada</small></span>
+      </a>
+      ${isAdmin ? `
+        <a role="menuitem" href="admin-resolution.html">
+          <span aria-hidden="true">✓</span>
+          <span><strong>Resolver mercados</strong><small>Panel de revisión administrativa</small></span>
+        </a>
+      ` : ""}
+    </nav>
+    <button class="user-menu-signout" type="button" role="menuitem" data-auth-signout>
+      <span aria-hidden="true">↪</span>
+      <span>Cerrar sesión</span>
+    </button>
+  `;
+}
+
+function positionUserMenu(trigger) {
+  const menu = document.querySelector("#oraklo-user-menu");
+  if (!menu || !trigger) return;
+
+  const triggerRect = trigger.getBoundingClientRect();
+  const right = Math.max(12, window.innerWidth - triggerRect.right);
+  const preferredTop = triggerRect.bottom + 10;
+  const maxTop = Math.max(12, window.innerHeight - menu.offsetHeight - 12);
+
+  menu.style.right = `${right}px`;
+  menu.style.top = `${Math.min(preferredTop, maxTop)}px`;
+}
+
+function closeUserMenu() {
+  const menu = document.querySelector("#oraklo-user-menu");
+  userMenuOpen = false;
+  if (menu) menu.hidden = true;
+  document.querySelectorAll("[data-auth-state='user'][data-profile-username]").forEach((button) => {
+    button.setAttribute("aria-expanded", "false");
+  });
+}
+
+function toggleUserMenu(trigger) {
+  injectUserMenu();
+  const menu = document.querySelector("#oraklo-user-menu");
+  if (!menu) return;
+
+  if (userMenuOpen) {
+    closeUserMenu();
+    return;
+  }
+
+  renderUserMenu();
+  userMenuOpen = true;
+  menu.hidden = false;
+  trigger.setAttribute("aria-expanded", "true");
+  positionUserMenu(trigger);
+  menu.querySelector("[role='menuitem']")?.focus();
 }
 
 function updateHeaderSessionState() {
@@ -81,6 +216,13 @@ function updateHeaderSessionState() {
       "aria-label",
       isAuthenticated ? `Usuario ${profile.username}` : "Entrar en Oraklo"
     );
+
+    if (node.matches("[data-auth-state='user']")) {
+      node.setAttribute("aria-haspopup", "menu");
+      node.setAttribute("aria-controls", "oraklo-user-menu");
+      node.setAttribute("aria-expanded", String(userMenuOpen));
+      node.dataset.profileTheme = profile.profileTheme || "aurora";
+    }
   });
 
   document.querySelectorAll("[data-auth-state='guest']").forEach((node) => {
@@ -97,6 +239,10 @@ function updateHeaderSessionState() {
 
   document.body.classList.toggle("is-authenticated", isAuthenticated);
   document.body.classList.toggle("is-oraklo-admin", isAuthenticated && isAdmin);
+
+  if (userMenuOpen) {
+    renderUserMenu();
+  }
 }
 
 async function loadProfileForUser(user, fallbackProfile = null) {
@@ -279,12 +425,14 @@ async function handleAuthSubmit(event) {
 
 async function signOut() {
   if (!authClient) return;
+  closeUserMenu();
   await authClient.auth.signOut();
   await applySession(null);
 }
 
 function bindAuthUi() {
   injectAuthModal();
+  injectUserMenu();
 
   document.addEventListener("click", (event) => {
     const openButton = event.target.closest("[data-auth-open]");
@@ -293,6 +441,7 @@ function bindAuthUi() {
     const profileButton = event.target.closest(
       "[data-auth-state='user'][data-profile-username]"
     );
+    const clickedInsideUserMenu = event.target.closest("#oraklo-user-menu");
 
     if (openButton) {
       openAuthModal(openButton.dataset.authMessage || "");
@@ -307,7 +456,13 @@ function bindAuthUi() {
     }
 
     if (profileButton && authState.profile?.id) {
-      window.location.href = `profile.html?id=${encodeURIComponent(authState.profile.id)}`;
+      event.preventDefault();
+      toggleUserMenu(profileButton);
+      return;
+    }
+
+    if (userMenuOpen && !clickedInsideUserMenu) {
+      closeUserMenu();
     }
   });
 
@@ -324,7 +479,13 @@ function bindAuthUi() {
     if (event.key === "Escape" && modal && !modal.hidden) {
       closeAuthModal();
     }
+    if (event.key === "Escape" && userMenuOpen) {
+      closeUserMenu();
+    }
   });
+
+  window.addEventListener("resize", closeUserMenu);
+  window.addEventListener("scroll", closeUserMenu, { passive: true });
 }
 
 async function requireAuth(options = {}) {

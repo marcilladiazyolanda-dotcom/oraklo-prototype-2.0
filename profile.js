@@ -3,6 +3,31 @@ const profileRoot = document.querySelector("#profile-root");
 
 const PROFILE_HISTORY_PAGE_SIZE = 12;
 
+const PROFILE_CATEGORIES = [
+  "Lanzamientos",
+  "Reviews/Premios",
+  "Eventos",
+  "Streamers",
+  "YouTubers",
+  "Industria"
+];
+
+const PROFILE_AVATARS = [
+  { key: "oracle", mark: "◇", label: "Oráculo" },
+  { key: "spark", mark: "✦", label: "Destello" },
+  { key: "hex", mark: "⬡", label: "Nexo" },
+  { key: "pulse", mark: "◉", label: "Pulso" },
+  { key: "delta", mark: "△", label: "Vértice" }
+];
+
+const PROFILE_THEMES = [
+  { key: "aurora", label: "Aurora" },
+  { key: "violet", label: "Violeta" },
+  { key: "solar", label: "Solar" },
+  { key: "ocean", label: "Océano" },
+  { key: "emerald", label: "Esmeralda" }
+];
+
 const predictorProfileState = {
   targetId: null,
   profile: null,
@@ -12,7 +37,10 @@ const predictorProfileState = {
   hasMoreHistory: false,
   loadingMore: false,
   historyLoadError: "",
-  optionalDataWarning: ""
+  optionalDataWarning: "",
+  customizationAvailable: true,
+  activeTab: "summary",
+  profileSavedMessage: ""
 };
 
 function escapeProfileHtml(value) {
@@ -64,6 +92,26 @@ function getProfileInitials(username) {
     ? `${parts[0][0] || ""}${parts[1][0] || ""}`
     : clean.slice(0, 2);
   return (initials || "OR").toUpperCase();
+}
+
+function getProfileAvatar(profile) {
+  return PROFILE_AVATARS.find((avatar) => avatar.key === profile?.avatar_key)
+    || PROFILE_AVATARS[0];
+}
+
+function getProfileTheme(profile) {
+  return PROFILE_THEMES.some((theme) => theme.key === profile?.profile_theme)
+    ? profile.profile_theme
+    : "aurora";
+}
+
+function getRequestedProfileTab() {
+  const tab = window.location.hash.replace(/^#/, "");
+  return ["summary", "history", "badges"].includes(tab) ? tab : "summary";
+}
+
+function shouldOpenProfileEditor() {
+  return new URLSearchParams(window.location.search).get("edit") === "1";
 }
 
 function isValidProfileId(value) {
@@ -171,12 +219,10 @@ function getHistoryResult(historyItem) {
 
 function createProfileStatsMarkup(profile) {
   const cards = [
-    { label: "Prestigio", value: formatProfileNumber(profile.prestige), tone: "gold" },
     { label: "Posición global", value: profile.global_position ? `#${formatProfileNumber(profile.global_position)}` : "—", tone: "blue" },
     { label: "Precisión", value: formatProfilePercent(profile.accuracy), tone: "green" },
-    { label: "Predicciones decididas", value: formatProfileNumber(profile.resolved_predictions), tone: "violet" },
-    { label: "Racha actual", value: `${formatProfileNumber(profile.current_streak)} aciertos`, tone: "blue" },
-    { label: "Mejor racha", value: `${formatProfileNumber(profile.best_streak)} aciertos`, tone: "gold" }
+    { label: "Aciertos", value: formatProfileNumber(profile.correct_predictions), tone: "violet" },
+    { label: "Mejor racha", value: `${formatProfileNumber(profile.best_streak)}×`, tone: "gold" }
   ];
 
   return cards.map((card) => `
@@ -222,6 +268,223 @@ function createBadgeMarkup(badges) {
       </div>
     </article>
   `).join("");
+}
+
+function isViewingOwnProfile(profile = predictorProfileState.profile) {
+  const authState = window.orakloAuth?.getState?.();
+  return Boolean(
+    profile?.is_own_profile
+    || (authState?.user?.id && authState.user.id === profile?.id)
+  );
+}
+
+function createProfileEditorMarkup(profile) {
+  const avatarKey = getProfileAvatar(profile).key;
+  const themeKey = getProfileTheme(profile);
+
+  return `
+    <div class="modal-backdrop profile-editor-backdrop" id="profile-editor" hidden>
+      <section class="modal profile-editor" role="dialog" aria-modal="true" aria-labelledby="profile-editor-title" aria-describedby="profile-editor-note">
+        <button class="modal-close" id="profile-editor-close" type="button" aria-label="Cerrar personalización">×</button>
+        <p class="eyebrow">Tu identidad en Oraklo</p>
+        <h2 id="profile-editor-title">Personalizar perfil</h2>
+        <p id="profile-editor-note">Estos datos serán públicos. Tu email, Karma disponible y predicciones activas nunca se mostrarán.</p>
+
+        <form class="profile-editor-form" id="profile-editor-form">
+          <div class="profile-editor-grid">
+            <label>
+              <span>Username</span>
+              <input id="profile-editor-username" type="text" value="${escapeProfileHtml(profile.username || "")}" maxlength="25" autocomplete="username" required>
+              <small>Entre 3 y 24 caracteres después de @. Letras, números, punto o guion bajo.</small>
+            </label>
+
+            <label>
+              <span>Categoría favorita</span>
+              <select id="profile-editor-category">
+                <option value="">Sin categoría favorita</option>
+                ${PROFILE_CATEGORIES.map((category) => `
+                  <option value="${escapeProfileHtml(category)}"${profile.favorite_category === category ? " selected" : ""}>${escapeProfileHtml(category)}</option>
+                `).join("")}
+              </select>
+              <small>Se mostrará como parte de tu identidad predictiva.</small>
+            </label>
+          </div>
+
+          <label>
+            <span>Biografía</span>
+            <textarea id="profile-editor-bio" maxlength="180" rows="3" placeholder="Cuenta qué señales sigues o en qué tipo de mercados destacas...">${escapeProfileHtml(profile.bio || "")}</textarea>
+            <small><span id="profile-bio-count">${String(profile.bio || "").length}</span>/180 caracteres</small>
+          </label>
+
+          <fieldset class="profile-choice-fieldset">
+            <legend>Avatar</legend>
+            <div class="profile-avatar-options">
+              ${PROFILE_AVATARS.map((avatar) => `
+                <label class="profile-avatar-option">
+                  <input type="radio" name="profile-avatar" value="${avatar.key}"${avatarKey === avatar.key ? " checked" : ""}>
+                  <span aria-hidden="true">${avatar.mark}</span>
+                  <small>${avatar.label}</small>
+                </label>
+              `).join("")}
+            </div>
+          </fieldset>
+
+          <fieldset class="profile-choice-fieldset">
+            <legend>Tema del perfil</legend>
+            <div class="profile-theme-options">
+              ${PROFILE_THEMES.map((theme) => `
+                <label class="profile-theme-option profile-theme-swatch-${theme.key}">
+                  <input type="radio" name="profile-theme" value="${theme.key}"${themeKey === theme.key ? " checked" : ""}>
+                  <span aria-hidden="true"></span>
+                  <small>${theme.label}</small>
+                </label>
+              `).join("")}
+            </div>
+          </fieldset>
+
+          <p class="auth-status" id="profile-editor-status" hidden></p>
+          <div class="profile-editor-actions">
+            <button class="secondary-button" id="profile-editor-cancel" type="button">Cancelar</button>
+            <button class="primary-button" id="profile-editor-save" type="submit">Guardar cambios</button>
+          </div>
+        </form>
+      </section>
+    </div>
+  `;
+}
+
+function setProfileEditorStatus(message, tone = "info") {
+  const node = document.querySelector("#profile-editor-status");
+  if (!node) return;
+  node.textContent = message || "";
+  node.className = `auth-status auth-status-${tone}`;
+  node.hidden = !message;
+}
+
+function openProfileEditor() {
+  if (!isViewingOwnProfile()) return;
+  const editor = document.querySelector("#profile-editor");
+  if (!editor) return;
+  editor.hidden = false;
+  document.body.classList.add("has-open-modal");
+  document.querySelector("#profile-editor-username")?.focus();
+}
+
+function closeProfileEditor() {
+  const editor = document.querySelector("#profile-editor");
+  if (editor) editor.hidden = true;
+  document.body.classList.remove("has-open-modal");
+  setProfileEditorStatus("");
+}
+
+function getProfileUpdateErrorMessage(error) {
+  const details = `${error?.code || ""} ${error?.message || ""}`.toUpperCase();
+  if (details.includes("USERNAME_TAKEN") || details.includes("23505")) {
+    return "Ese username ya está siendo utilizado. Elige otro.";
+  }
+  if (details.includes("INVALID_USERNAME")) {
+    return "El username debe tener entre 3 y 24 caracteres y solo puede usar letras, números, punto o guion bajo.";
+  }
+  if (details.includes("INVALID_BIO")) {
+    return "La biografía no puede superar los 180 caracteres.";
+  }
+  if (details.includes("INVALID_CATEGORY")) {
+    return "La categoría seleccionada no es válida.";
+  }
+  if (details.includes("AUTH_REQUIRED") || details.includes("28000")) {
+    return "Tu sesión ha caducado. Vuelve a iniciar sesión para guardar.";
+  }
+  if (details.includes("PROFILE_NOT_FOUND")) {
+    return "No se ha encontrado tu perfil. Cierra sesión y vuelve a entrar.";
+  }
+  if (details.includes("PGRST202") || details.includes("UPDATE_MY_PUBLIC_PROFILE")) {
+    return "La personalización todavía no está activada en Supabase. Ejecuta el SQL incluido en esta actualización.";
+  }
+  return "No se han podido guardar los cambios. Inténtalo de nuevo.";
+}
+
+async function handleProfileEditorSubmit(event) {
+  event.preventDefault();
+  if (!profileClient || !isViewingOwnProfile()) return;
+
+  let username = document.querySelector("#profile-editor-username")?.value.trim() || "";
+  const bio = document.querySelector("#profile-editor-bio")?.value.trim() || "";
+  const favoriteCategory = document.querySelector("#profile-editor-category")?.value || null;
+  const avatarKey = document.querySelector("input[name='profile-avatar']:checked")?.value || "oracle";
+  const profileTheme = document.querySelector("input[name='profile-theme']:checked")?.value || "aurora";
+  const submitButton = document.querySelector("#profile-editor-save");
+
+  if (username && !username.startsWith("@")) username = `@${username}`;
+
+  if (!/^@[A-Za-z0-9._]{3,24}$/.test(username)) {
+    setProfileEditorStatus("Revisa el username: admite letras, números, punto y guion bajo.", "error");
+    return;
+  }
+
+  if (bio.length > 180) {
+    setProfileEditorStatus("La biografía no puede superar los 180 caracteres.", "error");
+    return;
+  }
+
+  submitButton.disabled = true;
+  setProfileEditorStatus("Guardando tu perfil...", "info");
+
+  try {
+    const { data, error } = await profileClient.rpc("update_my_public_profile", {
+      username_input: username,
+      bio_input: bio,
+      favorite_category_input: favoriteCategory,
+      avatar_key_input: avatarKey,
+      profile_theme_input: profileTheme
+    });
+
+    if (error) throw error;
+    const updated = normalizeProfileRow(data) || {};
+
+    predictorProfileState.profile = {
+      ...predictorProfileState.profile,
+      username: updated.username || username,
+      bio: updated.bio ?? bio,
+      favorite_category: updated.favorite_category ?? favoriteCategory,
+      avatar_key: updated.avatar_key || avatarKey,
+      profile_theme: updated.profile_theme || profileTheme
+    };
+    predictorProfileState.profileSavedMessage = "Perfil personalizado correctamente.";
+
+    await window.refreshOrakloProfile?.();
+    const url = new URL(window.location.href);
+    url.searchParams.delete("edit");
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+    closeProfileEditor();
+    renderPredictorProfile();
+  } catch (error) {
+    setProfileEditorStatus(getProfileUpdateErrorMessage(error), "error");
+  } finally {
+    submitButton.disabled = false;
+  }
+}
+
+function setProfileTab(tab, updateUrl = true) {
+  const nextTab = ["summary", "history", "badges"].includes(tab) ? tab : "summary";
+  predictorProfileState.activeTab = nextTab;
+
+  document.querySelectorAll("[data-profile-tab]").forEach((button) => {
+    const selected = button.dataset.profileTab === nextTab;
+    button.setAttribute("aria-selected", String(selected));
+    button.tabIndex = selected ? 0 : -1;
+  });
+
+  document.querySelectorAll("[data-profile-panel]").forEach((panel) => {
+    panel.hidden = panel.dataset.profilePanel !== nextTab;
+  });
+
+  if (nextTab === "history") renderPublicHistory();
+
+  if (updateUrl) {
+    const url = new URL(window.location.href);
+    url.hash = nextTab === "summary" ? "" : nextTab;
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  }
 }
 
 function createSeasonMarkup(profile) {
@@ -315,120 +578,173 @@ function renderPredictorProfile() {
   const profile = predictorProfileState.profile;
   const rankProgress = getRankProgress(profile);
   const badges = getProfileBadges(profile);
-  const isOwnProfile = Boolean(profile.is_own_profile);
+  const isOwnProfile = isViewingOwnProfile(profile);
   const decided = Number(profile.resolved_predictions) || 0;
   const annulled = Number(profile.annulled_predictions) || 0;
+  const avatar = getProfileAvatar(profile);
+  const theme = getProfileTheme(profile);
+  const unlockedBadges = badges.filter((badge) => badge.unlocked).length;
+  const profileBio = profile.bio
+    ? escapeProfileHtml(profile.bio)
+    : isOwnProfile
+      ? "Añade una biografía para contar cómo analizas el futuro del gaming."
+      : "Construyendo su trayectoria como predictor en Oraklo.";
 
   document.title = `${profile.username || "Perfil"} | Oraklo`;
 
   profileRoot.innerHTML = `
-    <section class="predictor-hero" aria-labelledby="predictor-name">
+    <section class="predictor-hero predictor-theme-${theme}" aria-labelledby="predictor-name">
       <div class="predictor-identity">
-        <div class="predictor-avatar" aria-hidden="true">${escapeProfileHtml(getProfileInitials(profile.username))}</div>
-        <div>
+        <div class="predictor-avatar" aria-hidden="true">
+          <span>${escapeProfileHtml(avatar.mark)}</span>
+          <small>${escapeProfileHtml(getProfileInitials(profile.username))}</small>
+        </div>
+        <div class="predictor-copy">
           <p class="eyebrow">Currículum predictivo ${isOwnProfile ? "· Tu perfil" : "· Perfil público"}</p>
           <h1 id="predictor-name">${escapeProfileHtml(profile.username)}</h1>
-          <p>Miembro de Oraklo desde ${escapeProfileHtml(formatProfileDate(profile.member_since))}</p>
+          <p class="predictor-bio">${profileBio}</p>
+          <div class="predictor-meta">
+            <span>Desde ${escapeProfileHtml(formatProfileDate(profile.member_since, { short: true }))}</span>
+            ${profile.favorite_category ? `<span>Favorita: ${escapeProfileHtml(profile.favorite_category)}</span>` : ""}
+          </div>
         </div>
       </div>
-      <aside class="predictor-rank-card">
-        <span>Rango de Prestigio</span>
-        <div class="predictor-rank-mark" aria-hidden="true">${escapeProfileHtml(String(profile.rank || "O").slice(0, 1))}</div>
-        <strong>${escapeProfileHtml(profile.rank || "Observador")}</strong>
-        <small>${formatProfileNumber(profile.prestige)} de Prestigio histórico</small>
-      </aside>
+      <div class="predictor-hero-side">
+        ${isOwnProfile ? '<button class="secondary-button profile-edit-button" id="open-profile-editor" type="button">Personalizar perfil</button>' : ""}
+        <aside class="predictor-rank-card">
+          <span>Rango de Prestigio</span>
+          <div class="predictor-rank-mark" aria-hidden="true">${escapeProfileHtml(String(profile.rank || "O").slice(0, 1))}</div>
+          <strong>${escapeProfileHtml(profile.rank || "Observador")}</strong>
+          <small>${formatProfileNumber(profile.prestige)} de Prestigio histórico</small>
+        </aside>
+      </div>
     </section>
 
-    <section class="profile-privacy-strip" aria-label="Privacidad del perfil">
-      <div>
-        <strong>Trayectoria verificable</strong>
-        <span>Las estadísticas proceden de resultados liquidados en Supabase.</span>
-      </div>
-      <div>
-        <strong>Privacidad protegida</strong>
-        <span>El Karma disponible y las predicciones activas no son públicos.</span>
-      </div>
-    </section>
+    <p class="profile-trust-note"><strong>Perfil verificado por resultados reales.</strong> El Karma disponible y las predicciones activas permanecen privados.</p>
 
     ${predictorProfileState.optionalDataWarning ? `
       <p class="profile-data-warning">${escapeProfileHtml(predictorProfileState.optionalDataWarning)}</p>
+    ` : ""}
+
+    ${predictorProfileState.profileSavedMessage ? `
+      <p class="profile-save-success">${escapeProfileHtml(predictorProfileState.profileSavedMessage)}</p>
     ` : ""}
 
     <section class="profile-stat-grid" aria-label="Estadísticas principales">
       ${createProfileStatsMarkup(profile)}
     </section>
 
-    <div class="profile-layout">
-      <div class="profile-main-column">
-        <section class="profile-panel" aria-labelledby="rank-progress-title">
-          <div class="profile-section-heading">
-            <div>
-              <p class="eyebrow">Progresión permanente</p>
-              <h2 id="rank-progress-title">Camino al siguiente rango</h2>
-            </div>
-            <strong>${escapeProfileHtml(profile.next_rank || "Rango máximo")}</strong>
-          </div>
-          <div class="ranking-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${rankProgress.percentage}">
-            <span style="width: ${rankProgress.percentage}%"></span>
-          </div>
-          <p class="ranking-progress-copy">${escapeProfileHtml(rankProgress.label)}</p>
-        </section>
+    <nav class="profile-tabs" role="tablist" aria-label="Secciones del perfil">
+      <button type="button" role="tab" data-profile-tab="summary" aria-selected="true">Resumen</button>
+      <button type="button" role="tab" data-profile-tab="history" aria-selected="false">Historial <span>${formatProfileNumber(decided + annulled)}</span></button>
+      <button type="button" role="tab" data-profile-tab="badges" aria-selected="false">Logros <span>${formatProfileNumber(unlockedBadges)}</span></button>
+    </nav>
 
-        <section class="profile-panel" aria-labelledby="specialties-title">
-          <div class="profile-section-heading">
-            <div>
-              <p class="eyebrow">Rendimiento por temática</p>
-              <h2 id="specialties-title">Especialidades</h2>
+    <section class="profile-tab-panel" data-profile-panel="summary">
+      <div class="profile-layout">
+        <div class="profile-main-column">
+          <section class="profile-panel profile-rank-progress-card" aria-labelledby="rank-progress-title">
+            <div class="profile-section-heading">
+              <div>
+                <p class="eyebrow">Siguiente objetivo</p>
+                <h2 id="rank-progress-title">${escapeProfileHtml(profile.next_rank || "Rango máximo alcanzado")}</h2>
+              </div>
+              <strong>${rankProgress.percentage}%</strong>
             </div>
-            <span>${decided} ${decided === 1 ? "resultado válido" : "resultados válidos"}</span>
-          </div>
-          <div class="specialties-list">
-            ${createSpecialtiesMarkup(predictorProfileState.specialties)}
-          </div>
-          <p class="profile-method-note">Las predicciones anuladas no cuentan para la precisión ni las especialidades.</p>
-        </section>
+            <div class="ranking-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${rankProgress.percentage}">
+              <span style="width: ${rankProgress.percentage}%"></span>
+            </div>
+            <p class="ranking-progress-copy">${escapeProfileHtml(rankProgress.label)}</p>
+          </section>
 
-        <section class="profile-panel public-history-panel" aria-labelledby="history-title">
-          <div class="profile-section-heading">
-            <div>
-              <p class="eyebrow">Resultados verificables</p>
-              <h2 id="history-title">Historial público resuelto</h2>
+          <section class="profile-panel" aria-labelledby="specialties-title">
+            <div class="profile-section-heading">
+              <div>
+                <p class="eyebrow">Fortalezas</p>
+                <h2 id="specialties-title">Especialidades</h2>
+              </div>
+              <span>${decided} ${decided === 1 ? "resultado válido" : "resultados válidos"}</span>
             </div>
-            <span>${formatProfileNumber(decided + annulled)} liquidaciones</span>
-          </div>
-          <div class="public-profile-history" id="public-profile-history"></div>
-          <button class="secondary-button profile-load-more" id="load-more-profile-history" type="button" hidden>Ver más resultados</button>
-        </section>
+            <div class="specialties-list">
+              ${createSpecialtiesMarkup(predictorProfileState.specialties)}
+            </div>
+            <p class="profile-method-note">Las anulaciones no alteran la precisión ni las especialidades.</p>
+          </section>
+        </div>
+
+        <aside class="profile-side-column" aria-label="Resumen complementario">
+          <section class="profile-side-card profile-season-card">
+            ${createSeasonMarkup(profile)}
+          </section>
+
+          <section class="profile-side-card" aria-labelledby="record-title">
+            <span class="profile-side-label">Trayectoria</span>
+            <h2 id="record-title">Balance de resultados</h2>
+            <dl class="profile-record-list">
+              <div><dt>Decididas</dt><dd>${formatProfileNumber(profile.resolved_predictions)}</dd></div>
+              <div><dt>Aciertos</dt><dd class="value-positive">${formatProfileNumber(profile.correct_predictions)}</dd></div>
+              <div><dt>Fallos</dt><dd class="value-negative">${formatProfileNumber(profile.missed_predictions)}</dd></div>
+              <div><dt>Racha actual</dt><dd>${formatProfileNumber(profile.current_streak)}×</dd></div>
+            </dl>
+          </section>
+        </aside>
       </div>
+    </section>
 
-      <aside class="profile-side-column" aria-label="Resumen complementario">
-        <section class="profile-side-card profile-season-card">
-          ${createSeasonMarkup(profile)}
-        </section>
-
-        <section class="profile-side-card" aria-labelledby="record-title">
-          <span class="profile-side-label">Balance histórico</span>
-          <h2 id="record-title">Resultados</h2>
-          <dl class="profile-record-list">
-            <div><dt>Aciertos</dt><dd class="value-positive">${formatProfileNumber(profile.correct_predictions)}</dd></div>
-            <div><dt>Fallos</dt><dd class="value-negative">${formatProfileNumber(profile.missed_predictions)}</dd></div>
-            <div><dt>Anuladas</dt><dd class="value-neutral">${formatProfileNumber(profile.annulled_predictions)}</dd></div>
-          </dl>
-        </section>
-
-        <section class="profile-side-card profile-badges-card" aria-labelledby="badges-title">
-          <span class="profile-side-label">Insignias en beta</span>
-          <h2 id="badges-title">Logros predictivos</h2>
-          <div class="profile-badges-list">
-            ${createBadgeMarkup(badges)}
+    <section class="profile-tab-panel" data-profile-panel="history" hidden>
+      <section class="profile-panel public-history-panel" aria-labelledby="history-title">
+        <div class="profile-section-heading">
+          <div>
+            <p class="eyebrow">Resultados verificables</p>
+            <h2 id="history-title">Historial público resuelto</h2>
           </div>
-        </section>
-      </aside>
-    </div>
+          <span>${formatProfileNumber(decided + annulled)} liquidaciones</span>
+        </div>
+        <div class="public-profile-history" id="public-profile-history"></div>
+        <button class="secondary-button profile-load-more" id="load-more-profile-history" type="button" hidden>Ver más resultados</button>
+      </section>
+    </section>
+
+    <section class="profile-tab-panel" data-profile-panel="badges" hidden>
+      <section class="profile-panel profile-achievements-panel" aria-labelledby="badges-title">
+        <div class="profile-section-heading">
+          <div>
+            <p class="eyebrow">Trayectoria reconocida</p>
+            <h2 id="badges-title">Logros predictivos</h2>
+          </div>
+          <span>${formatProfileNumber(unlockedBadges)} de ${formatProfileNumber(badges.length)} conseguidos</span>
+        </div>
+        <div class="profile-badges-list profile-badges-grid">
+          ${createBadgeMarkup(badges)}
+        </div>
+      </section>
+    </section>
+
+    ${isOwnProfile ? createProfileEditorMarkup(profile) : ""}
   `;
 
   document.querySelector("#load-more-profile-history")?.addEventListener("click", loadMoreProfileHistory);
+  document.querySelectorAll("[data-profile-tab]").forEach((button) => {
+    button.addEventListener("click", () => setProfileTab(button.dataset.profileTab));
+  });
+  document.querySelector("#open-profile-editor")?.addEventListener("click", openProfileEditor);
+  document.querySelector("#profile-editor-close")?.addEventListener("click", closeProfileEditor);
+  document.querySelector("#profile-editor-cancel")?.addEventListener("click", closeProfileEditor);
+  document.querySelector("#profile-editor-form")?.addEventListener("submit", handleProfileEditorSubmit);
+  document.querySelector("#profile-editor-bio")?.addEventListener("input", (event) => {
+    const counter = document.querySelector("#profile-bio-count");
+    if (counter) counter.textContent = event.target.value.length;
+  });
+  document.querySelector("#profile-editor")?.addEventListener("click", (event) => {
+    if (event.target.id === "profile-editor") closeProfileEditor();
+  });
+
+  setProfileTab(predictorProfileState.activeTab, false);
   renderPublicHistory();
+
+  if (isOwnProfile && shouldOpenProfileEditor()) {
+    openProfileEditor();
+  }
 }
 
 function renderProfileMessage({ eyebrow, title, message, action = "ranking" }) {
@@ -531,15 +847,19 @@ async function loadPredictorProfile() {
 
   predictorProfileState.targetId = targetId;
   predictorProfileState.optionalDataWarning = "";
+  predictorProfileState.activeTab = getRequestedProfileTab();
 
-  const [profileResult, specialtiesResult, historyResult] = await Promise.all([
+  const [profileResult, specialtiesResult, historyResult, customizationResult] = await Promise.all([
     Promise.resolve(
       profileClient.rpc("get_public_predictor_profile", { profile_id_input: targetId })
     ).catch((error) => ({ data: null, error })),
     Promise.resolve(
       profileClient.rpc("get_public_predictor_specialties", { profile_id_input: targetId })
     ).catch((error) => ({ data: [], error })),
-    fetchProfileHistory().catch((error) => ({ loadError: error }))
+    fetchProfileHistory().catch((error) => ({ loadError: error })),
+    Promise.resolve(
+      profileClient.rpc("get_public_predictor_customization", { profile_id_input: targetId })
+    ).catch((error) => ({ data: null, error }))
   ]);
 
   if (profileResult?.error) {
@@ -561,7 +881,18 @@ async function loadPredictorProfile() {
     return;
   }
 
-  predictorProfileState.profile = profile;
+  const customization = customizationResult?.error
+    ? null
+    : normalizeProfileRow(customizationResult?.data);
+
+  predictorProfileState.customizationAvailable = !customizationResult?.error;
+  predictorProfileState.profile = {
+    ...profile,
+    bio: customization?.bio || "",
+    favorite_category: customization?.favorite_category || null,
+    avatar_key: customization?.avatar_key || "oracle",
+    profile_theme: customization?.profile_theme || "aurora"
+  };
   predictorProfileState.specialties = specialtiesResult?.error
     ? []
     : specialtiesResult?.data || [];
@@ -582,6 +913,16 @@ async function loadPredictorProfile() {
 
   renderPredictorProfile();
 }
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeProfileEditor();
+});
+
+window.addEventListener("hashchange", () => {
+  if (predictorProfileState.profile) {
+    setProfileTab(getRequestedProfileTab(), false);
+  }
+});
 
 loadPredictorProfile().catch(() => {
   renderProfileMessage({
