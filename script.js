@@ -18,7 +18,18 @@ const stateFilters = [
 ];
 
 let markets = [];
+let globalRankingUsers = [];
 let seasonRankingUsers = [];
+let homeRankingUsers = [];
+let competitionStatus = null;
+let rankLadder = [
+  { posicion: 1, nombre: "Observador", prestigioMinimo: 0 },
+  { posicion: 2, nombre: "Intérprete", prestigioMinimo: 100 },
+  { posicion: 3, nombre: "Analista", prestigioMinimo: 250 },
+  { posicion: 4, nombre: "Visionario", prestigioMinimo: 500 },
+  { posicion: 5, nombre: "Oráculo", prestigioMinimo: 1000 }
+];
+let currentAuthState = null;
 let publicActivity = null;
 let marketClockTimer = null;
 let expiryRefreshPromise = null;
@@ -39,6 +50,10 @@ const resultCountNode = document.querySelector("#result-count");
 const emptyStateNode = document.querySelector("#empty-state");
 const featuredMarketNode = document.querySelector("#featured-market");
 const leaderboardPanelNode = document.querySelector("#leaderboard-panel");
+const homeRankingEyebrowNode = document.querySelector("#home-ranking-eyebrow");
+const homeRankingTitleNode = document.querySelector("#home-ranking-title");
+const competitionSnapshotLabelNode = document.querySelector("#competition-snapshot-label");
+const rankProgressNoteNode = document.querySelector("#rank-progress-note");
 const activityPanelNode = document.querySelector("#public-activity-panel");
 const dataSourceWarningNode = document.querySelector("#data-source-warning");
 const searchInput = document.querySelector("#market-search");
@@ -46,6 +61,15 @@ const clearButton = document.querySelector("#clear-filters");
 
 function formatNumber(value) {
   return new Intl.NumberFormat("es-ES").format(Number(value) || 0);
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 function normalizeText(value) {
@@ -144,27 +168,77 @@ async function loadMarketsFromSupabase() {
 function mapLeaderboardUser(row) {
   return {
     id: row.id || row.user_id || row.profile_id || row.username,
+    posicion: toNumber(row.position),
     username: row.username || row.display_name || "@Usuario",
-    prestigio: toNumber(row.prestige ?? row.prestigio),
+    prestigio: toNumber(row.season_prestige ?? row.prestige ?? row.prestigio),
+    prestigioHistorico: toNumber(row.lifetime_prestige ?? row.prestige ?? row.prestigio),
     rango: row.rank || row.rango || "Observador",
-    mejorCategoria: row.best_category || row.mejor_categoria || "Pendiente"
+    mejorCategoria: row.best_category || row.mejor_categoria || "Pendiente",
+    prediccionesResueltas: toNumber(row.resolved_predictions),
+    aciertos: toNumber(row.correct_predictions),
+    precision: toNumber(row.accuracy),
+    siguienteRango: row.next_rank || null,
+    prestigioRestante: toNumber(row.prestige_to_next_rank)
   };
 }
 
-async function loadLeaderboardFromSupabase() {
+async function loadGlobalLeaderboardFromSupabase() {
   if (!window.orakloSupabase) {
     throw new Error("Supabase no está disponible.");
   }
 
-  const { data, error } = await window.orakloSupabase.rpc("get_public_leaderboard", {
+  const currentResult = await window.orakloSupabase.rpc("get_public_global_leaderboard", {
     limit_count: 10
   });
 
-  if (error) {
-    throw error;
+  if (!currentResult.error) {
+    return (currentResult.data || []).map(mapLeaderboardUser);
   }
 
-  return (data || []).map(mapLeaderboardUser).filter((user) => user.prestigio > 0);
+  const legacyResult = await window.orakloSupabase.rpc("get_public_leaderboard", {
+    limit_count: 10
+  });
+
+  if (legacyResult.error) throw currentResult.error;
+  return (legacyResult.data || []).map(mapLeaderboardUser).filter((user) => user.prestigio > 0);
+}
+
+async function loadSeasonLeaderboardFromSupabase() {
+  if (!window.orakloSupabase) {
+    throw new Error("Supabase no está disponible.");
+  }
+
+  const { data, error } = await window.orakloSupabase.rpc("get_public_season_leaderboard", {
+    limit_count: 10
+  });
+
+  if (error) throw error;
+  return (data || []).map(mapLeaderboardUser);
+}
+
+async function loadCompetitionStatusFromSupabase() {
+  if (!window.orakloSupabase) {
+    throw new Error("Supabase no está disponible.");
+  }
+
+  const { data, error } = await window.orakloSupabase.rpc("get_public_competition_status");
+  if (error) throw error;
+  return Array.isArray(data) ? data[0] || null : data;
+}
+
+async function loadRankLadderFromSupabase() {
+  if (!window.orakloSupabase) {
+    throw new Error("Supabase no está disponible.");
+  }
+
+  const { data, error } = await window.orakloSupabase.rpc("get_public_rank_ladder");
+  if (error) throw error;
+  return (data || []).map((rank) => ({
+    posicion: toNumber(rank.position),
+    nombre: rank.name,
+    prestigioMinimo: toNumber(rank.min_prestige),
+    descripcion: rank.description || ""
+  }));
 }
 
 function mapPublicActivity(row) {
@@ -290,30 +364,75 @@ function createMarketCard(market) {
 }
 
 function getUserProfileUrl(user) {
-  return `profile.html?user=${encodeURIComponent(user.id || user.username)}`;
+  return `ranking.html#ranking-user-${encodeURIComponent(user.id || user.username)}`;
 }
 
 function createLeaderboardRow(user, index) {
   const link = document.createElement("a");
   link.className = "leaderboard-row";
   link.href = getUserProfileUrl(user);
-  link.setAttribute("aria-label", `Ver perfil de ${user.username}`);
+  link.setAttribute("aria-label", `Ver posición de ${user.username}`);
+  const position = user.posicion || index + 1;
   link.innerHTML = `
-    <span class="rank-position">${index + 1}</span>
+    <span class="rank-position">${position}</span>
     <span>
-      <span class="rank-user">${user.username}</span>
-      <span class="rank-meta">${formatNumber(user.prestigio)} Prestigio · ${user.rango}</span>
-      <span class="rank-category">Mejor categoría: ${user.mejorCategoria}</span>
+      <span class="rank-user">${escapeHtml(user.username)}</span>
+      <span class="rank-meta">${formatNumber(user.prestigio)} Prestigio · ${escapeHtml(user.rango)}</span>
+      <span class="rank-category">${user.aciertos} aciertos · ${formatNumber(user.precision)}% precisión</span>
     </span>
   `;
 
   return link;
 }
 
+function getHomeRankProgress(prestige) {
+  const ladder = [...rankLadder].sort((a, b) => a.prestigioMinimo - b.prestigioMinimo);
+  const safePrestige = Math.max(0, toNumber(prestige));
+  let current = ladder[0] || { nombre: "Observador", prestigioMinimo: 0 };
+
+  ladder.forEach((rank) => {
+    if (rank.prestigioMinimo <= safePrestige) current = rank;
+  });
+
+  const next = ladder.find((rank) => rank.prestigioMinimo > safePrestige) || null;
+  return {
+    current,
+    next,
+    remaining: next ? Math.max(0, next.prestigioMinimo - safePrestige) : 0
+  };
+}
+
+function renderCompetitionSnapshot() {
+  if (!competitionSnapshotLabelNode || !rankProgressNoteNode) return;
+
+  const profile = currentAuthState?.profile || { prestige: 0, rank: "Observador" };
+  const progress = getHomeRankProgress(profile.prestige);
+  const seasonsActive = competitionStatus?.state === "Activa";
+
+  competitionSnapshotLabelNode.textContent = seasonsActive
+    ? competitionStatus.season_name || "Temporada activa"
+    : "Rango actual";
+
+  rankProgressNoteNode.textContent = progress.next
+    ? `Faltan ${formatNumber(progress.remaining)} de Prestigio para ${progress.next.nombre}.`
+    : "Rango máximo alcanzado.";
+}
+
 function renderLeaderboard() {
   leaderboardPanelNode.innerHTML = "";
 
-  if (seasonRankingUsers.length === 0) {
+  const seasonIsActive = competitionStatus?.state === "Activa";
+  homeRankingUsers = seasonIsActive ? seasonRankingUsers : globalRankingUsers;
+  if (homeRankingEyebrowNode) {
+    homeRankingEyebrowNode.textContent = seasonIsActive ? "Temporada activa" : "Clasificación";
+  }
+  if (homeRankingTitleNode) {
+    homeRankingTitleNode.textContent = seasonIsActive
+      ? competitionStatus?.season_name || "Top temporada"
+      : "Top global";
+  }
+
+  if (homeRankingUsers.length === 0) {
     leaderboardPanelNode.innerHTML = `
       <div class="leaderboard-empty">
         <div class="leaderboard-placeholder" aria-hidden="true">
@@ -322,7 +441,7 @@ function renderLeaderboard() {
           <span class="placeholder-line"></span>
         </div>
         <strong>Aún no hay ranking competitivo</strong>
-        <p>El ranking se activará cuando se resuelvan mercados y haya Prestigio real.</p>
+        <p>La clasificación aparecerá cuando se resuelvan mercados y haya Prestigio real.</p>
       </div>
     `;
     return;
@@ -330,7 +449,7 @@ function renderLeaderboard() {
 
   const list = document.createElement("div");
   list.className = "leaderboard-list";
-  seasonRankingUsers.forEach((user, index) => {
+  homeRankingUsers.forEach((user, index) => {
     list.appendChild(createLeaderboardRow(user, index));
   });
   leaderboardPanelNode.appendChild(list);
@@ -464,6 +583,7 @@ function render() {
   renderFeaturedMarket();
   renderMarkets();
   renderLeaderboard();
+  renderCompetitionSnapshot();
   renderActivity();
 }
 
@@ -581,9 +701,19 @@ searchInput.addEventListener("input", (event) => {
 async function initializeMarkets() {
   renderLoadingState();
 
-  const [marketsResult, leaderboardResult, activityResult] = await Promise.allSettled([
+  const [
+    marketsResult,
+    globalLeaderboardResult,
+    seasonLeaderboardResult,
+    competitionResult,
+    rankLadderResult,
+    activityResult
+  ] = await Promise.allSettled([
     loadMarketsFromSupabase(),
-    loadLeaderboardFromSupabase(),
+    loadGlobalLeaderboardFromSupabase(),
+    loadSeasonLeaderboardFromSupabase(),
+    loadCompetitionStatusFromSupabase(),
+    loadRankLadderFromSupabase(),
     loadActivityFromSupabase()
   ]);
 
@@ -597,7 +727,18 @@ async function initializeMarkets() {
     setDataSourceWarning("No se han podido cargar los mercados desde Supabase. Mostrando mercados de prueba locales.");
   }
 
-  seasonRankingUsers = leaderboardResult.status === "fulfilled" ? leaderboardResult.value : [];
+  globalRankingUsers = globalLeaderboardResult.status === "fulfilled"
+    ? globalLeaderboardResult.value
+    : [];
+  seasonRankingUsers = seasonLeaderboardResult.status === "fulfilled"
+    ? seasonLeaderboardResult.value
+    : [];
+  competitionStatus = competitionResult.status === "fulfilled"
+    ? competitionResult.value
+    : null;
+  if (rankLadderResult.status === "fulfilled" && rankLadderResult.value.length > 0) {
+    rankLadder = rankLadderResult.value;
+  }
   publicActivity = activityResult.status === "fulfilled" ? activityResult.value : null;
 
   render();
@@ -608,4 +749,10 @@ window.addEventListener("pagehide", stopMarketClock);
 window.addEventListener("pageshow", (event) => {
   if (event.persisted && markets.length > 0) startMarketClock();
 });
+
+window.orakloAuth?.onChange((authState) => {
+  currentAuthState = authState;
+  renderCompetitionSnapshot();
+});
+
 initializeMarkets();

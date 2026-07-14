@@ -2054,6 +2054,347 @@ h3 {
   background: rgba(94, 224, 160, 0.09);
 }
 
+/* Paso 9 · Rangos, clasificación y temporadas preparadas */
+
+.season-snapshot-link {
+  display: inline-flex;
+  margin-top: 10px;
+  color: #f7d994;
+  font-size: 0.82rem;
+  font-weight: 760;
+  text-decoration: none;
+}
+
+.season-snapshot-link:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.leaderboard-more-link {
+  margin-top: 12px;
+}
+
+.ranking-page {
+  padding-bottom: 56px;
+}
+
+.ranking-intro {
+  align-items: stretch;
+}
+
+.competition-status-card {
+  flex: 0 0 300px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 18px;
+  border: 1px solid rgba(169, 139, 255, 0.32);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(169, 139, 255, 0.12), rgba(110, 168, 255, 0.055)),
+    rgba(18, 24, 39, 0.86);
+}
+
+.competition-status-card.is-active {
+  border-color: rgba(94, 224, 160, 0.42);
+  background:
+    linear-gradient(135deg, rgba(94, 224, 160, 0.13), rgba(110, 168, 255, 0.07)),
+    rgba(18, 24, 39, 0.86);
+}
+
+.competition-status-card span,
+.competition-status-card small {
+  color: var(--muted);
+}
+
+.competition-status-card strong {
+  margin: 6px 0;
+  color: var(--violet);
+  font-size: 1.24rem;
+}
+
+.competition-status-card.is-active strong {
+  color: var(--green);
+}
+
+.ranking-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.ranking-summary-card,
+.ranking-board-card,
+.rank-tier {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(18, 24, 39, 0.8);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.22);
+}
+
+.ranking-summary-card {
+  padding: 20px;
+}
+
+.ranking-summary-card h2 {
+  margin-bottom: 8px;
+}
+
+.ranking-summary-card p:last-child {
+  margin-bottom: 0;
+}
+
+.my-ranking-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: start;
+}
+
+.my-ranking-heading p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.my-ranking-position {
+  color: var(--gold);
+  font-size: 1.7rem;
+}
+
+.ranking-progress {
+  height: 10px;
+  margin: 15px 0 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.ranking-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--green), var(--blue), var(--violet));
+  box-shadow: 0 0 16px rgba(110, 168, 255, 0.3);
+}
+
+.ranking-progress-copy {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.ranking-board-card {
+  padding: 20px;
+}
+
+.ranking-board-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: end;
+}
+
+.ranking-board-heading h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.ranking-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(7, 9, 19, 0.36);
+}
+
+.ranking-tabs button {
+  min-height: 36px;
+  padding: 0 13px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--muted);
+  background: transparent;
+}
+
+.ranking-tabs button[aria-selected="true"] {
+  border-color: rgba(110, 168, 255, 0.42);
+  color: var(--text);
+  background: rgba(110, 168, 255, 0.14);
+}
+
+.ranking-board-note {
+  margin: 14px 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.ranking-board {
+  display: grid;
+  gap: 8px;
+}
+
+.ranking-row {
+  display: grid;
+  grid-template-columns: 54px minmax(180px, 1.6fr) repeat(3, minmax(90px, 0.72fr));
+  gap: 12px;
+  align-items: center;
+  padding: 13px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.032);
+}
+
+.ranking-row-header {
+  min-height: 34px;
+  padding-top: 7px;
+  padding-bottom: 7px;
+  color: var(--subtle);
+  background: transparent;
+  font-size: 0.76rem;
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+.ranking-row.is-podium {
+  border-color: rgba(240, 196, 107, 0.27);
+  background:
+    linear-gradient(90deg, rgba(240, 196, 107, 0.07), transparent 45%),
+    rgba(255, 255, 255, 0.035);
+}
+
+.ranking-row.is-current-user {
+  border-color: rgba(94, 224, 160, 0.56);
+  box-shadow: inset 3px 0 0 var(--green), 0 0 0 2px rgba(94, 224, 160, 0.08);
+}
+
+.ranking-position {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--blue);
+  font-weight: 850;
+}
+
+.position-1 .ranking-position,
+.position-2 .ranking-position,
+.position-3 .ranking-position {
+  color: var(--gold);
+  border-color: rgba(240, 196, 107, 0.42);
+  background: rgba(240, 196, 107, 0.08);
+}
+
+.ranking-identity,
+.ranking-score,
+.ranking-stat {
+  min-width: 0;
+}
+
+.ranking-identity strong,
+.ranking-identity span,
+.ranking-score strong,
+.ranking-score span,
+.ranking-stat strong,
+.ranking-stat span {
+  display: block;
+}
+
+.ranking-identity strong {
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ranking-identity span,
+.ranking-score span,
+.ranking-stat span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.ranking-score strong {
+  color: var(--gold);
+}
+
+.ranking-stat strong {
+  color: #dce7f7;
+}
+
+.ranking-season-empty {
+  padding: 30px 18px;
+  border: 1px dashed rgba(169, 139, 255, 0.34);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.rank-ladder-section {
+  margin-top: 28px;
+}
+
+.rank-ladder {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.rank-tier {
+  position: relative;
+  min-height: 210px;
+  padding: 18px;
+  overflow: hidden;
+}
+
+.rank-tier::after {
+  content: "";
+  position: absolute;
+  right: -35px;
+  bottom: -45px;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: rgba(110, 168, 255, 0.07);
+  filter: blur(2px);
+}
+
+.rank-tier.is-current {
+  border-color: rgba(94, 224, 160, 0.55);
+  background:
+    linear-gradient(145deg, rgba(94, 224, 160, 0.1), rgba(110, 168, 255, 0.04)),
+    rgba(18, 24, 39, 0.84);
+}
+
+.rank-tier-number {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-bottom: 15px;
+  border: 1px solid rgba(169, 139, 255, 0.38);
+  border-radius: 8px;
+  color: var(--violet);
+  font-weight: 840;
+}
+
+.rank-tier h3 {
+  margin-bottom: 5px;
+}
+
+.rank-tier strong {
+  color: var(--gold);
+  font-size: 0.9rem;
+}
+
+.rank-tier p {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
 @media (max-width: 1120px) {
   .topbar {
     grid-template-columns: auto 1fr;
@@ -2090,6 +2431,10 @@ h3 {
   .sidebar {
     position: static;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .rank-ladder {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -2145,6 +2490,46 @@ h3 {
 
   .season-snapshot {
     margin-top: 18px;
+  }
+
+  .competition-status-card {
+    width: 100%;
+    margin-top: 18px;
+  }
+
+  .ranking-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ranking-board-heading {
+    display: block;
+  }
+
+  .ranking-tabs {
+    width: 100%;
+    margin-top: 14px;
+  }
+
+  .ranking-tabs button {
+    flex: 1 1 50%;
+  }
+
+  .ranking-row {
+    grid-template-columns: 44px minmax(0, 1fr) minmax(92px, auto);
+  }
+
+  .ranking-row .ranking-stat,
+  .ranking-row-header span:nth-child(4),
+  .ranking-row-header span:nth-child(5) {
+    display: none;
+  }
+
+  .rank-ladder {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .rank-tier {
+    min-height: 190px;
   }
 
   .filter-row,
@@ -2256,6 +2641,27 @@ h3 {
 
   .stats {
     grid-template-columns: 1fr;
+  }
+
+  .ranking-board-card,
+  .ranking-summary-card {
+    padding: 15px;
+  }
+
+  .ranking-row {
+    padding: 11px 9px;
+  }
+
+  .ranking-score span {
+    font-size: 0.7rem;
+  }
+
+  .rank-ladder {
+    grid-template-columns: 1fr;
+  }
+
+  .rank-tier {
+    min-height: 0;
   }
 
   .detail-user-state .user-stat-pill {

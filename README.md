@@ -10,3 +10,26 @@ Prototipo MVP de Oraklo: red social competitiva de predicciones gaming basada en
 - Las fuentes aprobadas y la explicación quedan visibles en la ficha pública del mercado.
 
 La clave de Gemini se configura únicamente como secreto `GEMINI_API_KEY` de las Edge Functions. Nunca debe añadirse al frontend ni al repositorio.
+
+## Rangos y clasificación
+
+- El rango se calcula automáticamente desde el Prestigio histórico:
+  - Observador: 0–99.
+  - Intérprete: 100–249.
+  - Analista: 250–499.
+  - Visionario: 500–999.
+  - Oráculo: 1.000 o más.
+- `ranking.html` muestra la clasificación global real, estadísticas y progreso de rango.
+- Las temporadas están preparadas, pero desactivadas durante el desarrollo.
+- La configuración inicial exige 100 usuarios registrados y una activación administrativa explícita.
+- Al empezar una temporada solo se reinicia su clasificación competitiva; el Prestigio histórico y el rango se conservan.
+
+Cuando llegue el lanzamiento, el umbral y la duración se pueden ajustar desde el SQL Editor con una cuenta administrativa. Esta llamada deja preparada la activación; la temporada solo comenzará cuando también se alcance el número indicado de perfiles:
+
+```sql
+select public.configure_oraklo_seasons(
+  seasons_enabled_input => true,
+  minimum_registered_users_input => 100,
+  season_length_months_input => 3
+);
+```

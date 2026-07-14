@@ -27,6 +27,7 @@
         </span>
         <span class="user-stat-pill">Prestigio: <strong data-profile-prestige>0</strong></span>
         <span class="user-stat-pill">Rango: <strong data-profile-rank>Observador</strong></span>
+        <a class="topbar-link" href="ranking.html">Clasificación</a>
         <a class="topbar-link" href="my-predictions.html">Mis predicciones</a>
         <a class="topbar-link admin-link" href="admin-resolution.html" data-admin-only hidden>Resolver mercados</a>
         <button class="icon-button" type="button" aria-label="Notificaciones">
@@ -47,11 +48,12 @@
           <p class="subtitle">Predice el futuro del gaming. Gana Prestigio. Sube en el ranking.</p>
           <p class="supporting-copy">Elige un mercado, analiza las opciones y demuestra que lo viste venir.</p>
         </div>
-        <div class="season-snapshot" role="status" aria-label="Resumen de temporada">
-          <span>Rango actual</span>
-          <strong>Observador</strong>
-          <small>Prestigio: 0</small>
-          <small class="prestige-note">Se gana acertando predicciones.</small>
+        <div class="season-snapshot" id="competition-snapshot" role="status" aria-label="Resumen competitivo">
+          <span id="competition-snapshot-label">Rango actual</span>
+          <strong data-profile-rank>Observador</strong>
+          <small>Prestigio: <span data-profile-prestige>0</span></small>
+          <small class="prestige-note" id="rank-progress-note">Cargando progreso de rango...</small>
+          <a class="season-snapshot-link" href="ranking.html">Ver clasificación</a>
         </div>
       </section>
 
@@ -91,10 +93,11 @@
         <aside class="sidebar" aria-label="Panel lateral">
           <section class="side-card">
             <div class="side-heading">
-              <p class="eyebrow">Ranking</p>
-              <h2>Top temporada</h2>
+              <p class="eyebrow" id="home-ranking-eyebrow">Clasificación</p>
+              <h2 id="home-ranking-title">Top global</h2>
             </div>
             <div class="leaderboard" id="leaderboard-panel"></div>
+            <a class="secondary-button leaderboard-more-link" href="ranking.html">Ver clasificación completa</a>
           </section>
 
           <section class="side-card weekly-event">

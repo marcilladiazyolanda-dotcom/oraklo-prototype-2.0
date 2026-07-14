@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Oraklo | Clasificación</title>
+  <meta name="description" content="Clasificación global, rangos y temporadas competitivas de Oraklo.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar" aria-label="Cabecera principal">
+      <a class="brand" href="index.html" aria-label="Oraklo inicio">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">Oraklo</span>
+      </a>
+
+      <nav class="detail-nav" aria-label="Navegación de clasificación">
+        <a href="index.html">Explorar mercados</a>
+        <a href="my-predictions.html">Mis predicciones</a>
+        <a href="admin-resolution.html" data-admin-only hidden>Resolver mercados</a>
+      </nav>
+
+      <div class="topbar-actions detail-user-state" role="group" aria-label="Estado del usuario">
+        <span class="karma-pill" role="status" aria-label="Karma disponible: 1.000">
+          <span class="karma-symbol" aria-hidden="true">K</span>
+          <strong data-profile-karma>1.000</strong>
+        </span>
+        <span class="user-stat-pill">Prestigio: <strong data-profile-prestige>0</strong></span>
+        <span class="user-stat-pill">Rango: <strong data-profile-rank>Observador</strong></span>
+        <button class="profile-button" type="button" data-auth-open data-auth-state="guest" data-profile-username aria-label="Entrar en Oraklo">Entrar</button>
+        <button class="profile-button" type="button" data-auth-state="user" data-profile-username hidden aria-label="Usuario @Usuario">@Usuario</button>
+        <button class="logout-button" type="button" data-auth-signout data-auth-state="user" hidden>Salir</button>
+      </div>
+    </header>
+
+    <main class="ranking-page">
+      <section class="page-intro ranking-intro" aria-labelledby="ranking-title">
+        <div>
+          <p class="eyebrow">Competición basada en reputación</p>
+          <h1 id="ranking-title">Clasificación Oraklo</h1>
+          <p class="subtitle">El Prestigio no se compra: se consigue acertando predicciones.</p>
+          <p class="supporting-copy">Consulta la clasificación global, descubre los rangos y sigue tu progreso.</p>
+        </div>
+
+        <aside class="competition-status-card" id="competition-status-card" aria-live="polite">
+          <span>Temporadas</span>
+          <strong>Preparando sistema...</strong>
+          <small>Consultando el estado real de Oraklo.</small>
+        </aside>
+      </section>
+
+      <section class="ranking-summary-grid" aria-label="Resumen competitivo">
+        <article class="ranking-summary-card" id="my-ranking-summary">
+          <p class="eyebrow">Tu progreso</p>
+          <h2>Inicia sesión para ver tu posición</h2>
+          <p>Tu Prestigio, rango y progreso aparecerán aquí.</p>
+          <button class="secondary-button" type="button" data-auth-open>Iniciar sesión</button>
+        </article>
+
+        <article class="ranking-summary-card" id="season-launch-summary">
+          <p class="eyebrow">Primera temporada</p>
+          <h2>Todavía no está activa</h2>
+          <p>Se abrirá cuando Oraklo esté preparado para su lanzamiento.</p>
+        </article>
+      </section>
+
+      <section class="ranking-board-card" aria-labelledby="ranking-board-title">
+        <div class="ranking-board-heading">
+          <div>
+            <p class="eyebrow">Datos reales de Supabase</p>
+            <h2 id="ranking-board-title">Clasificación global</h2>
+          </div>
+          <div class="ranking-tabs" role="tablist" aria-label="Tipo de clasificación">
+            <button type="button" role="tab" id="global-ranking-tab" data-ranking-mode="global" aria-selected="true">Global</button>
+            <button type="button" role="tab" id="season-ranking-tab" data-ranking-mode="season" aria-selected="false">Temporada</button>
+          </div>
+        </div>
+
+        <p class="ranking-board-note" id="ranking-board-note">Cargando clasificación...</p>
+        <div id="ranking-board" class="ranking-board" aria-live="polite"></div>
+      </section>
+
+      <section class="rank-ladder-section" aria-labelledby="rank-ladder-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Progresión permanente</p>
+            <h2 id="rank-ladder-title">Rangos de Prestigio</h2>
+            <p class="prototype-note">El rango refleja la reputación histórica y nunca se reinicia con las temporadas.</p>
+          </div>
+        </div>
+        <div class="rank-ladder" id="rank-ladder" aria-live="polite">
+          <p class="loading-state">Cargando rangos...</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabaseClient.js"></script>
+  <script src="auth.js"></script>
+  <script src="ranking.js"></script>
+</body>
+</html>
