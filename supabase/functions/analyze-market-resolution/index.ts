@@ -1,6 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_INTERACTIONS_REVISION = "2026-05-20";
+const GEMINI_REQUEST_TIMEOUT_MS = 45_000;
 const MAX_REQUEST_BYTES = 8_192;
 
 const corsHeaders = {
@@ -11,6 +13,20 @@ const corsHeaders = {
 };
 
 type JsonRecord = Record<string, unknown>;
+
+type GeminiOutput = {
+  text: string;
+  sources: JsonRecord[];
+  searchQueries: string[];
+};
+
+type GeminiProviderResult = {
+  ok: boolean;
+  provider: "interactions" | "generateContent";
+  status: number;
+  payload: JsonRecord | null;
+  detail: string;
+};
 
 function jsonResponse(body: JsonRecord, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -44,6 +60,14 @@ function isRecord(value: unknown): value is JsonRecord {
 
 function getText(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function getHostname(value: string): string {
+  try {
+    return new URL(value).hostname;
+  } catch {
+    return "Fuente web";
+  }
 }
 
 function normalizeMarket(payload: unknown): JsonRecord | null {
@@ -180,15 +204,15 @@ function normalizeAnalysis(
   };
 }
 
-function extractGeminiOutput(payload: JsonRecord): {
-  text: string;
-  sources: JsonRecord[];
-  searchQueries: string[];
-} {
+function extractInteractionsOutput(payload: JsonRecord): GeminiOutput {
   const textParts: string[] = [];
   const searchQueries = new Set<string>();
   const sources = new Map<string, JsonRecord>();
-  const steps = Array.isArray(payload.steps) ? payload.steps : [];
+  const steps = Array.isArray(payload.steps)
+    ? payload.steps
+    : Array.isArray(payload.outputs)
+    ? payload.outputs
+    : [];
 
   for (const stepValue of steps) {
     if (!isRecord(stepValue)) continue;
@@ -204,8 +228,25 @@ function extractGeminiOutput(payload: JsonRecord): {
       );
     }
 
-    if (stepValue.type !== "model_output") continue;
-    const blocks = Array.isArray(stepValue.content) ? stepValue.content : [];
+    if (
+      stepValue.type === "google_search_result" && isRecord(stepValue.result)
+    ) {
+      const resultUrl = getText(stepValue.result.url);
+      if (/^https?:\/\//i.test(resultUrl) && !sources.has(resultUrl)) {
+        sources.set(resultUrl, {
+          title: getHostname(resultUrl),
+          url: resultUrl,
+          cited_text: "",
+        });
+      }
+    }
+
+    const blocks =
+      stepValue.type === "model_output" && Array.isArray(stepValue.content)
+        ? stepValue.content
+        : stepValue.type === "text"
+        ? [stepValue]
+        : [];
 
     for (const blockValue of blocks) {
       if (!isRecord(blockValue) || blockValue.type !== "text") continue;
@@ -217,9 +258,11 @@ function extractGeminiOutput(payload: JsonRecord): {
         : [];
       for (const annotationValue of annotations) {
         if (
-          !isRecord(annotationValue) || annotationValue.type !== "url_citation"
+          !isRecord(annotationValue) ||
+          (annotationValue.type !== "url_citation" && !annotationValue.source)
         ) continue;
-        const url = getText(annotationValue.url);
+        const url = getText(annotationValue.url) ||
+          getText(annotationValue.source);
         if (!/^https?:\/\//i.test(url)) continue;
 
         const start = Number(
@@ -235,7 +278,7 @@ function extractGeminiOutput(payload: JsonRecord): {
 
         if (!sources.has(url)) {
           sources.set(url, {
-            title: getText(annotationValue.title) || new URL(url).hostname,
+            title: getText(annotationValue.title) || getHostname(url),
             url,
             cited_text: citedText,
           });
@@ -254,6 +297,322 @@ function extractGeminiOutput(payload: JsonRecord): {
     sources: [...sources.values()].slice(0, 12),
     searchQueries: [...searchQueries].slice(0, 12),
   };
+}
+
+function extractGenerateContentOutput(payload: JsonRecord): GeminiOutput {
+  const textParts: string[] = [];
+  const searchQueries = new Set<string>();
+  const sources = new Map<string, JsonRecord>();
+  const candidates = Array.isArray(payload.candidates)
+    ? payload.candidates
+    : [];
+
+  for (const candidateValue of candidates) {
+    if (!isRecord(candidateValue)) continue;
+
+    const content = isRecord(candidateValue.content)
+      ? candidateValue.content
+      : {};
+    const parts = Array.isArray(content.parts) ? content.parts : [];
+    for (const partValue of parts) {
+      if (!isRecord(partValue)) continue;
+      const partText = getText(partValue.text);
+      if (partText) textParts.push(partText);
+    }
+
+    const metadata = isRecord(candidateValue.groundingMetadata)
+      ? candidateValue.groundingMetadata
+      : isRecord(candidateValue.grounding_metadata)
+      ? candidateValue.grounding_metadata
+      : {};
+    const queries = Array.isArray(metadata.webSearchQueries)
+      ? metadata.webSearchQueries
+      : Array.isArray(metadata.web_search_queries)
+      ? metadata.web_search_queries
+      : [];
+    queries.map(getText).filter(Boolean).forEach((query) =>
+      searchQueries.add(query)
+    );
+
+    const chunks = Array.isArray(metadata.groundingChunks)
+      ? metadata.groundingChunks
+      : Array.isArray(metadata.grounding_chunks)
+      ? metadata.grounding_chunks
+      : [];
+    const supports = Array.isArray(metadata.groundingSupports)
+      ? metadata.groundingSupports
+      : Array.isArray(metadata.grounding_supports)
+      ? metadata.grounding_supports
+      : [];
+    const citedTextByChunk = new Map<number, Set<string>>();
+
+    for (const supportValue of supports) {
+      if (!isRecord(supportValue)) continue;
+      const segment = isRecord(supportValue.segment)
+        ? supportValue.segment
+        : {};
+      const segmentText = getText(segment.text);
+      const indices = Array.isArray(supportValue.groundingChunkIndices)
+        ? supportValue.groundingChunkIndices
+        : Array.isArray(supportValue.grounding_chunk_indices)
+        ? supportValue.grounding_chunk_indices
+        : [];
+
+      for (const indexValue of indices) {
+        const index = Number(indexValue);
+        if (!Number.isInteger(index) || index < 0 || !segmentText) continue;
+        if (!citedTextByChunk.has(index)) {
+          citedTextByChunk.set(index, new Set());
+        }
+        citedTextByChunk.get(index)?.add(segmentText);
+      }
+    }
+
+    chunks.forEach((chunkValue, index) => {
+      if (!isRecord(chunkValue)) return;
+      const web = isRecord(chunkValue.web)
+        ? chunkValue.web
+        : isRecord(chunkValue.retrievedContext)
+        ? chunkValue.retrievedContext
+        : {};
+      const url = getText(web.uri) || getText(web.url);
+      if (!/^https?:\/\//i.test(url) || sources.has(url)) return;
+
+      sources.set(url, {
+        title: getText(web.title) || getHostname(url),
+        url,
+        cited_text: [...(citedTextByChunk.get(index) ?? [])].join(" ").slice(
+          0,
+          1000,
+        ),
+      });
+    });
+  }
+
+  return {
+    text: textParts.join("\n").trim(),
+    sources: [...sources.values()].slice(0, 12),
+    searchQueries: [...searchQueries].slice(0, 12),
+  };
+}
+
+async function readGeminiResponse(
+  response: Response,
+  provider: GeminiProviderResult["provider"],
+): Promise<GeminiProviderResult> {
+  const responseText = await response.text();
+  let payload: JsonRecord | null = null;
+
+  try {
+    const parsed = JSON.parse(responseText);
+    payload = isRecord(parsed) ? parsed : null;
+  } catch {
+    // Keep the shortened text for private logs and return a friendly error later.
+  }
+
+  return {
+    ok: response.ok,
+    provider,
+    status: response.status,
+    payload,
+    detail: response.ok ? "" : responseText.slice(0, 600),
+  };
+}
+
+async function requestGeminiInteractions(
+  apiKey: string,
+  prompt: string,
+): Promise<GeminiProviderResult> {
+  try {
+    const response = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/interactions",
+      {
+        method: "POST",
+        headers: {
+          "x-goog-api-key": apiKey,
+          "Content-Type": "application/json",
+          "Api-Revision": GEMINI_INTERACTIONS_REVISION,
+        },
+        body: JSON.stringify({
+          model: GEMINI_MODEL,
+          input: prompt,
+          store: false,
+          tools: [{ type: "google_search" }],
+        }),
+        signal: AbortSignal.timeout(GEMINI_REQUEST_TIMEOUT_MS),
+      },
+    );
+
+    return await readGeminiResponse(response, "interactions");
+  } catch (error) {
+    return {
+      ok: false,
+      provider: "interactions",
+      status: 0,
+      payload: null,
+      detail: error instanceof DOMException && error.name === "TimeoutError"
+        ? "timeout"
+        : "network_error",
+    };
+  }
+}
+
+async function requestGeminiGenerateContent(
+  apiKey: string,
+  prompt: string,
+): Promise<GeminiProviderResult> {
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
+      {
+        method: "POST",
+        headers: {
+          "x-goog-api-key": apiKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          tools: [{ google_search: {} }],
+          generationConfig: { temperature: 0.1 },
+        }),
+        signal: AbortSignal.timeout(GEMINI_REQUEST_TIMEOUT_MS),
+      },
+    );
+
+    return await readGeminiResponse(response, "generateContent");
+  } catch (error) {
+    return {
+      ok: false,
+      provider: "generateContent",
+      status: 0,
+      payload: null,
+      detail: error instanceof DOMException && error.name === "TimeoutError"
+        ? "timeout"
+        : "network_error",
+    };
+  }
+}
+
+function canTryLegacyFallback(result: GeminiProviderResult): boolean {
+  return ![401, 403, 429].includes(result.status);
+}
+
+function getFriendlyProviderFailure(result: GeminiProviderResult): {
+  error: string;
+  message: string;
+  status: number;
+} {
+  const detail = result.detail.toLowerCase();
+
+  if (result.status === 429 || detail.includes("quota")) {
+    return {
+      error: "AI_QUOTA_EXCEEDED",
+      message:
+        "Se ha alcanzado temporalmente el limite de Gemini. Reintentalo mas tarde o usa la resolucion manual.",
+      status: 429,
+    };
+  }
+
+  if (
+    result.status === 401 || result.status === 403 ||
+    detail.includes("api_key_invalid") || detail.includes("permission_denied")
+  ) {
+    return {
+      error: "AI_CONFIGURATION_ERROR",
+      message:
+        "Gemini ha rechazado la clave configurada. Revisa el secreto GEMINI_API_KEY o usa la resolucion manual.",
+      status: 502,
+    };
+  }
+
+  if (detail.includes("billing")) {
+    return {
+      error: "AI_BILLING_REQUIRED",
+      message:
+        "Google solicita habilitar la facturacion para esta busqueda. Puedes usar la resolucion manual con fuentes verificadas.",
+      status: 502,
+    };
+  }
+
+  if (result.status === 0 && result.detail === "timeout") {
+    return {
+      error: "AI_TIMEOUT",
+      message:
+        "La busqueda ha tardado demasiado. Reintentalo o usa la resolucion manual.",
+      status: 504,
+    };
+  }
+
+  return {
+    error: "AI_PROVIDER_ERROR",
+    message:
+      "Gemini no esta disponible ahora. Reintentalo o usa la resolucion manual con fuentes verificadas.",
+    status: 502,
+  };
+}
+
+async function analyzeWithGemini(
+  apiKey: string,
+  prompt: string,
+): Promise<
+  | {
+    ok: true;
+    output: GeminiOutput;
+    provider: GeminiProviderResult["provider"];
+  }
+  | { ok: false; failure: ReturnType<typeof getFriendlyProviderFailure> }
+> {
+  const interactions = await requestGeminiInteractions(apiKey, prompt);
+  if (interactions.ok && interactions.payload) {
+    const output = extractInteractionsOutput(interactions.payload);
+    if (output.text && output.sources.length) {
+      return { ok: true, output, provider: interactions.provider };
+    }
+    console.warn(
+      "Gemini Interactions returned incomplete grounded output",
+      Boolean(output.text),
+      output.sources.length,
+    );
+  } else {
+    console.error(
+      "Gemini Interactions failed",
+      interactions.status,
+      interactions.detail,
+    );
+  }
+
+  if (!canTryLegacyFallback(interactions)) {
+    return { ok: false, failure: getFriendlyProviderFailure(interactions) };
+  }
+
+  const generateContent = await requestGeminiGenerateContent(apiKey, prompt);
+  if (generateContent.ok && generateContent.payload) {
+    const output = extractGenerateContentOutput(generateContent.payload);
+    if (output.text && output.sources.length) {
+      return { ok: true, output, provider: generateContent.provider };
+    }
+    console.warn(
+      "Gemini generateContent returned incomplete grounded output",
+      Boolean(output.text),
+      output.sources.length,
+    );
+    return {
+      ok: false,
+      failure: {
+        error: "AI_NO_EVIDENCE",
+        message:
+          "La IA no ha devuelto fuentes verificables. Reintentalo o usa la resolucion manual.",
+        status: 422,
+      },
+    };
+  }
+
+  console.error(
+    "Gemini generateContent failed",
+    generateContent.status,
+    generateContent.detail,
+  );
+  return { ok: false, failure: getFriendlyProviderFailure(generateContent) };
 }
 
 Deno.serve(async (req: Request) => {
@@ -365,42 +724,18 @@ Deno.serve(async (req: Request) => {
       }, 409);
     }
 
-    const geminiResponse = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/interactions",
-      {
-        method: "POST",
-        headers: {
-          "x-goog-api-key": geminiApiKey,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: GEMINI_MODEL,
-          input: buildPrompt(market),
-          store: false,
-          tools: [{ type: "google_search" }],
-        }),
-        signal: AbortSignal.timeout(90_000),
-      },
+    const geminiAnalysis = await analyzeWithGemini(
+      geminiApiKey,
+      buildPrompt(market),
     );
-
-    if (!geminiResponse.ok) {
-      const providerMessage = (await geminiResponse.text()).slice(0, 500);
-      console.error(
-        "Gemini request failed",
-        geminiResponse.status,
-        providerMessage,
-      );
-      const quotaExceeded = geminiResponse.status === 429;
+    if (!geminiAnalysis.ok) {
       return jsonResponse({
-        error: quotaExceeded ? "AI_QUOTA_EXCEEDED" : "AI_PROVIDER_ERROR",
-        message: quotaExceeded
-          ? "Se ha alcanzado temporalmente el limite gratuito de la IA."
-          : "La IA no ha podido completar el analisis.",
-      }, quotaExceeded ? 429 : 502);
+        error: geminiAnalysis.failure.error,
+        message: geminiAnalysis.failure.message,
+      }, geminiAnalysis.failure.status);
     }
 
-    const geminiPayload = await geminiResponse.json() as JsonRecord;
-    const extracted = extractGeminiOutput(geminiPayload);
+    const extracted = geminiAnalysis.output;
     const analysis = normalizeAnalysis(
       parseJsonObject(extracted.text),
       extracted.text,
@@ -421,6 +756,7 @@ Deno.serve(async (req: Request) => {
         ? "Comprueba las fuentes y sus fechas antes de aprobar la resolucion."
         : "La IA no ha devuelto fuentes verificables. No apruebes esta propuesta.",
       model: GEMINI_MODEL,
+      provider_api: geminiAnalysis.provider,
       generated_at: new Date().toISOString(),
       can_resolve_market: false,
     });

@@ -7,6 +7,7 @@ Prototipo MVP de Oraklo: red social competitiva de predicciones gaming basada en
 - `analyze-market-resolution` consulta Gemini con Google Search y solo propone un resultado con fuentes.
 - `approve-market-resolution` exige una administradora autenticada y ejecuta la resolución atómica en Supabase.
 - La IA nunca puede resolver por sí sola: una persona debe revisar las fuentes, elegir el resultado y confirmar la liquidación.
+- Si Gemini no está disponible, el panel permite una resolución manual protegida que también exige fuentes HTTPS y revisión humana.
 - Las fuentes aprobadas y la explicación quedan visibles en la ficha pública del mercado.
 
 La clave de Gemini se configura únicamente como secreto `GEMINI_API_KEY` de las Edge Functions. Nunca debe añadirse al frontend ni al repositorio.
@@ -33,3 +34,7 @@ select public.configure_oraklo_seasons(
   season_length_months_input => 3
 );
 ```
+
+## Recordatorio para el pulido final
+
+- Diseñar un emblema visual propio para cada nivel de Prestigio: Observador, Intérprete, Analista, Visionario y Oráculo.

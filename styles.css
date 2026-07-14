@@ -1801,6 +1801,7 @@ h3 {
 }
 
 .admin-field select,
+.admin-field input,
 .admin-field textarea {
   width: 100%;
   border: 1px solid var(--line);
@@ -1813,6 +1814,7 @@ h3 {
 }
 
 .admin-field select:focus,
+.admin-field input:focus,
 .admin-field textarea:focus {
   border-color: rgba(110, 168, 255, 0.75);
   box-shadow: 0 0 0 3px rgba(110, 168, 255, 0.16);
@@ -1850,6 +1852,11 @@ h3 {
 .admin-analyze-button,
 .admin-resolve-button {
   width: 100%;
+}
+
+.admin-manual-button {
+  width: 100%;
+  margin-top: 10px;
 }
 
 .admin-action-help,
@@ -1949,6 +1956,39 @@ h3 {
 .admin-source-list {
   display: grid;
   gap: 10px;
+  margin-top: 12px;
+}
+
+.admin-manual-source-list {
+  display: grid;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.admin-manual-source {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid rgba(110, 168, 255, 0.25);
+  border-radius: 8px;
+  background: rgba(110, 168, 255, 0.04);
+}
+
+.admin-manual-source legend {
+  padding: 0 6px;
+  color: #bcd5ff;
+  font-weight: 760;
+}
+
+.admin-manual-source .admin-field:first-of-type {
+  margin-top: 4px;
+}
+
+.admin-manual-source textarea {
+  min-height: 92px;
+}
+
+.admin-remove-source {
+  width: auto;
   margin-top: 12px;
 }
 

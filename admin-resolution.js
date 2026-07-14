@@ -6,11 +6,29 @@ const adminResolutionState = {
   analysisResponse: null,
   analyzing: false,
   approving: false,
+  manualMode: false,
+  manualSourceCount: 1,
+  manualDraft: createEmptyManualDraft(),
   statusMessage: "",
   statusTone: "info"
 };
 
 let lastAdminAuthKey = "";
+
+function createEmptyManualDraft() {
+  return {
+    result: "",
+    note: "",
+    humanReviewed: false,
+    sources: [{ title: "", url: "", cited_text: "" }]
+  };
+}
+
+function resetManualResolution() {
+  adminResolutionState.manualMode = false;
+  adminResolutionState.manualSourceCount = 1;
+  adminResolutionState.manualDraft = createEmptyManualDraft();
+}
 
 function escapeAdminHtml(value) {
   return String(value ?? "")
@@ -114,12 +132,19 @@ function renderAdminWorkspace() {
         <button class="primary-button admin-analyze-button" id="admin-analyze-market" type="button"${adminResolutionState.analyzing ? " disabled" : ""}>
           ${adminResolutionState.analyzing ? "Investigando fuentes..." : selected?.resolution_result ? "Auditar con IA" : "Analizar con IA"}
         </button>
+        ${selected?.resolution_result ? "" : `
+          <button class="secondary-button admin-manual-button" id="admin-toggle-manual" type="button"${adminResolutionState.analyzing || adminResolutionState.approving ? " disabled" : ""}>
+            ${adminResolutionState.manualMode ? "Volver al análisis con IA" : "Resolver manualmente con fuentes"}
+          </button>
+        `}
         <p class="admin-action-help">El análisis no modifica el mercado ni los saldos.</p>
       </section>
 
       <section class="admin-analysis-panel" id="admin-analysis-panel">
         ${adminResolutionState.analysisResponse
           ? createAdminAnalysisMarkup(adminResolutionState.analysisResponse, selected)
+          : adminResolutionState.manualMode
+          ? createManualApprovalMarkup()
           : createAdminAnalysisEmptyMarkup()}
       </section>
     </div>
@@ -146,6 +171,74 @@ function createAdminAnalysisEmptyMarkup() {
       <p class="eyebrow">2 · Investigar</p>
       <h2>Esperando análisis</h2>
       <p>Gemini buscará información actual, aplicará la fecha de cierre y devolverá motivos con enlaces verificables.</p>
+    </div>
+  `;
+}
+
+function createManualApprovalMarkup() {
+  const draft = adminResolutionState.manualDraft;
+  const sources = Array.from(
+    { length: adminResolutionState.manualSourceCount },
+    (_, index) => draft.sources[index] || { title: "", url: "", cited_text: "" }
+  );
+
+  const sourceFields = sources.map((source, index) => `
+    <fieldset class="admin-manual-source" data-admin-manual-source-row="${index}">
+      <legend>Fuente ${index + 1}</legend>
+      <label class="admin-field">
+        <span>Título de la fuente</span>
+        <input data-admin-manual-title type="text" minlength="2" maxlength="200" value="${escapeAdminHtml(source.title)}" required>
+      </label>
+      <label class="admin-field">
+        <span>Enlace HTTPS</span>
+        <input data-admin-manual-url type="url" maxlength="2048" placeholder="https://..." value="${escapeAdminHtml(source.url)}" required>
+      </label>
+      <label class="admin-field">
+        <span>Qué demuestra esta fuente</span>
+        <textarea data-admin-manual-cited-text maxlength="1000" required>${escapeAdminHtml(source.cited_text)}</textarea>
+      </label>
+      ${index > 0 ? `<button class="secondary-button admin-remove-source" type="button" data-admin-remove-source="${index}">Quitar fuente</button>` : ""}
+    </fieldset>
+  `).join("");
+
+  return `
+    <div class="admin-analysis-result admin-manual-resolution">
+      <p class="eyebrow">2 · Resolución manual</p>
+      <h2>Revisión humana con fuentes</h2>
+      <p>Esta vía no usa Gemini. Comprueba personalmente el criterio, la fecha de cierre y cada enlace antes de confirmar.</p>
+
+      <form class="admin-approval-form" id="admin-manual-approval-form">
+        <label class="admin-field" for="admin-manual-result">
+          <span>Resultado oficial</span>
+          <select id="admin-manual-result" required>
+            <option value="">Selecciona después de revisar</option>
+            <option value="Sí"${draft.result === "Sí" ? " selected" : ""}>Sí</option>
+            <option value="No"${draft.result === "No" ? " selected" : ""}>No</option>
+            <option value="Anulado"${draft.result === "Anulado" ? " selected" : ""}>Anulado</option>
+          </select>
+        </label>
+
+        <label class="admin-field" for="admin-manual-note">
+          <span>Explicación que verán los usuarios</span>
+          <textarea id="admin-manual-note" minlength="10" maxlength="4000" required>${escapeAdminHtml(draft.note)}</textarea>
+        </label>
+
+        <div class="admin-sources-section">
+          <h3>Fuentes verificadas</h3>
+          <div class="admin-manual-source-list">${sourceFields}</div>
+          <button class="secondary-button" id="admin-add-manual-source" type="button"${adminResolutionState.manualSourceCount >= 12 ? " disabled" : ""}>Añadir otra fuente</button>
+        </div>
+
+        <label class="admin-human-check">
+          <input id="admin-manual-human-reviewed" type="checkbox"${draft.humanReviewed ? " checked" : ""} required>
+          <span>He abierto todas las fuentes, comprobado sus fechas y aplicado personalmente los criterios del mercado.</span>
+        </label>
+
+        <button class="danger-button admin-resolve-button" type="submit"${adminResolutionState.approving ? " disabled" : ""}>
+          ${adminResolutionState.approving ? "Resolviendo mercado..." : "Confirmar resolución y repartir Karma"}
+        </button>
+        <p class="admin-final-warning">Esta acción es irreversible: liquidará todas las predicciones activas del mercado.</p>
+      </form>
     </div>
   `;
 }
@@ -266,11 +359,65 @@ function bindAdminWorkspaceEvents() {
     ) || null;
     adminResolutionState.analysisResponse = null;
     adminResolutionState.statusMessage = "";
+    resetManualResolution();
     renderAdminWorkspace();
   });
 
   document.querySelector("#admin-analyze-market")?.addEventListener("click", analyzeSelectedMarket);
+  document.querySelector("#admin-toggle-manual")?.addEventListener("click", toggleManualResolution);
   document.querySelector("#admin-approval-form")?.addEventListener("submit", approveSelectedResolution);
+  document.querySelector("#admin-manual-approval-form")?.addEventListener("submit", approveManualResolution);
+  document.querySelector("#admin-add-manual-source")?.addEventListener("click", addManualSource);
+  document.querySelectorAll("[data-admin-remove-source]").forEach((button) => {
+    button.addEventListener("click", () => removeManualSource(Number(button.dataset.adminRemoveSource)));
+  });
+}
+
+function captureManualDraft() {
+  const form = document.querySelector("#admin-manual-approval-form");
+  if (!form) return adminResolutionState.manualDraft;
+
+  const sources = Array.from(form.querySelectorAll("[data-admin-manual-source-row]")).map((row) => ({
+    title: row.querySelector("[data-admin-manual-title]")?.value.trim() || "",
+    url: row.querySelector("[data-admin-manual-url]")?.value.trim() || "",
+    cited_text: row.querySelector("[data-admin-manual-cited-text]")?.value.trim() || ""
+  }));
+
+  adminResolutionState.manualDraft = {
+    result: form.querySelector("#admin-manual-result")?.value || "",
+    note: form.querySelector("#admin-manual-note")?.value.trim() || "",
+    humanReviewed: Boolean(form.querySelector("#admin-manual-human-reviewed")?.checked),
+    sources
+  };
+  return adminResolutionState.manualDraft;
+}
+
+function toggleManualResolution() {
+  if (adminResolutionState.analyzing || adminResolutionState.approving) return;
+  if (adminResolutionState.manualMode) {
+    captureManualDraft();
+    adminResolutionState.manualMode = false;
+  } else {
+    adminResolutionState.analysisResponse = null;
+    adminResolutionState.manualMode = true;
+  }
+  renderAdminWorkspace();
+}
+
+function addManualSource() {
+  if (adminResolutionState.manualSourceCount >= 12) return;
+  captureManualDraft();
+  adminResolutionState.manualSourceCount += 1;
+  adminResolutionState.manualDraft.sources.push({ title: "", url: "", cited_text: "" });
+  renderAdminWorkspace();
+}
+
+function removeManualSource(index) {
+  if (index < 1 || index >= adminResolutionState.manualSourceCount) return;
+  captureManualDraft();
+  adminResolutionState.manualDraft.sources.splice(index, 1);
+  adminResolutionState.manualSourceCount -= 1;
+  renderAdminWorkspace();
 }
 
 async function analyzeSelectedMarket() {
@@ -279,6 +426,7 @@ async function analyzeSelectedMarket() {
 
   adminResolutionState.analyzing = true;
   adminResolutionState.analysisResponse = null;
+  adminResolutionState.manualMode = false;
   adminResolutionState.statusMessage = "";
   renderAdminWorkspace();
 
@@ -298,8 +446,12 @@ async function analyzeSelectedMarket() {
 
     adminResolutionState.analysisResponse = data;
   } catch (error) {
-    adminResolutionState.statusMessage = error.message || "La IA no ha podido analizar este mercado.";
+    const message = error.message || "La IA no ha podido analizar este mercado.";
+    adminResolutionState.statusMessage = /resoluci[oó]n manual/i.test(message)
+      ? message
+      : `${message} Puedes reintentarlo o continuar con la resolución manual.`;
     adminResolutionState.statusTone = "error";
+    adminResolutionState.manualMode = true;
   } finally {
     adminResolutionState.analyzing = false;
     renderAdminWorkspace();
@@ -324,6 +476,57 @@ async function approveSelectedResolution(event) {
     return;
   }
 
+  await completeMarketResolution({
+    market,
+    result,
+    note,
+    sources: selectedSources,
+    aiModel: response.model,
+    aiGeneratedAt: response.generated_at
+  });
+}
+
+async function approveManualResolution(event) {
+  event.preventDefault();
+  if (adminResolutionState.approving) return;
+
+  const market = adminResolutionState.selectedMarket;
+  const draft = captureManualDraft();
+  const sources = draft.sources.map((source) => ({
+    title: source.title,
+    url: getSafeAdminUrl(source.url),
+    cited_text: source.cited_text
+  }));
+  const hasInvalidSource = sources.some((source) => (
+    source.title.length < 2 || !source.url || !source.cited_text
+  ));
+
+  if (
+    !market || !draft.result || draft.note.length < 10 ||
+    !draft.humanReviewed || !sources.length || hasInvalidSource
+  ) {
+    window.alert("Completa el resultado, la explicación, todas las fuentes HTTPS y la confirmación de revisión humana.");
+    return;
+  }
+
+  await completeMarketResolution({
+    market,
+    result: draft.result,
+    note: draft.note,
+    sources,
+    aiModel: null,
+    aiGeneratedAt: null
+  });
+}
+
+async function completeMarketResolution({
+  market,
+  result,
+  note,
+  sources,
+  aiModel,
+  aiGeneratedAt
+}) {
   const confirmed = window.confirm(
     `Vas a resolver “${market.question}” como ${result}. Se repartirán Karma y Prestigio de forma inmediata. ¿Confirmas la resolución?`
   );
@@ -341,9 +544,9 @@ async function approveSelectedResolution(event) {
           market_id: market.id,
           result,
           resolution_note: note,
-          sources: selectedSources,
-          ai_model: response.model,
-          ai_generated_at: response.generated_at
+          sources,
+          ai_model: aiModel,
+          ai_generated_at: aiGeneratedAt
         }
       }
     );
@@ -359,6 +562,7 @@ async function approveSelectedResolution(event) {
     const resolution = Array.isArray(data.resolution) ? data.resolution[0] : data.resolution;
     await window.refreshOrakloProfile?.();
     adminResolutionState.analysisResponse = null;
+    resetManualResolution();
     adminResolutionState.statusMessage = `Mercado resuelto correctamente: ${resolution?.winners ?? 0} aciertos, ${resolution?.losers ?? 0} fallos y ${resolution?.total_karma_awarded ?? 0} Karma abonado.`;
     adminResolutionState.statusTone = "success";
     await loadAdminMarkets();
