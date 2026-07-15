@@ -1,6 +1,12 @@
 # oraklo-prototype-2.0
 Prototipo MVP de Oraklo: red social competitiva de predicciones gaming basada en Karma, Prestigio y rankings.
 
+## Continuidad entre chats
+
+- `AGENTS.md` contiene las instrucciones permanentes que Codex debe aplicar al trabajar en esta carpeta.
+- `ORAKLO_PROJECT_CONTEXT.md` recoge el estado técnico, decisiones, roadmap, restricciones y comprobaciones necesarias para retomar el proyecto en un chat nuevo.
+- Antes de editar, hay que leer ambos documentos y comprobar el estado actual de Git; el transcript anterior no debe ser la única fuente de contexto.
+
 ## Resolución asistida por IA
 
 - `admin-resolution.html` es el panel privado de revisión de mercados cerrados.
@@ -38,7 +44,7 @@ Las claves se configuran únicamente como secretos `GEMINI_API_KEY` y `TAVILY_AP
 - Las insignias están preparadas con estados bloqueado/conseguido; sus emblemas visuales definitivos se diseñarán durante el pulido final.
 - La posición de temporada muestra «Temporada no iniciada» mientras el sistema siga desactivado.
 - El usuario puede personalizar su username, biografía pública, categoría favorita, avatar simbólico y tema visual. La RPC de escritura solo permite modificar el perfil de `auth.uid()` y valida todos los valores en Supabase.
-- Al pulsar el `@username` de cualquier cabecera se abre el menú de cuenta con accesos al perfil, personalización, predicciones, clasificación, panel administrativo cuando corresponda y cierre de sesión.
+- Al pulsar el `@username` de cualquier cabecera se abre, sin abandonar la página, un menú flotante con el resumen de Karma, Prestigio y rango; accesos al perfil, personalización, mercados, predicciones y clasificación; ayuda, privacidad, panel administrativo cuando corresponda y cierre de sesión.
 - Las RPC públicas usan una lista cerrada de campos, `search_path` vacío y permisos explícitos. Es intencionado que puedan atravesar RLS para publicar solo el currículum y los resultados liquidados; nunca devuelven el saldo actual ni filas activas.
 
 Para activar la personalización hay que ejecutar una sola vez en Supabase el archivo:
@@ -60,3 +66,4 @@ select public.configure_oraklo_seasons(
 ## Recordatorio para el pulido final
 
 - Diseñar un emblema visual propio para cada nivel de Prestigio: Observador, Intérprete, Analista, Visionario y Oráculo.
+- Sustituir los avatares simbólicos provisionales por una colección de avatares propios y atractivos, relacionados con el gaming y el universo de Oraklo, manteniendo el tono de oráculo moderno y evitando cualquier estética de casino.
