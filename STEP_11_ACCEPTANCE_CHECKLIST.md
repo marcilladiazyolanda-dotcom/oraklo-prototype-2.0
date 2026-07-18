@@ -2,13 +2,20 @@
 
 Este checklist se ejecuta después de subir el paquete completo y antes de considerar el Paso 11 desplegado. Usa únicamente cuentas y actividad reales de prueba; no rellenes la plataforma con usuarios, comentarios o métricas simulados.
 
+## Resultado registrado · 18 de julio de 2026
+
+El MVP social quedó desplegado y aceptado. Las comprobaciones críticas se realizaron en producción como invitada, con `@SKINNY.TONI`, una segunda cuenta normal temporal y la administradora. Se validaron comentario, edición, spoiler, borrado, respuesta de un nivel, rechazo de un nivel adicional, seguimiento, reacción, silencio, reporte, descarte y auditoría. Las pruebas técnicas cubrieron además ocultación/restauración, restricción/levantamiento, privacidad del feed y bloqueo de acceso directo a tablas.
+
+La cuenta temporal y todos sus datos de prueba se eliminaron al terminar. El comentario original de `@SKINNY.TONI` permaneció intacto. Durante la aceptación se corrigió también el contador público mediante `20260718182915_expose_real_market_comment_counts.sql`; tabla, RPC de listado, RPC de detalle y pantalla mostraron el mismo valor real.
+
 ## 1. Aplicar la migración
 
 1. Abre el proyecto correcto de Oraklo en Supabase.
 2. Entra en **SQL Editor** y crea una consulta nueva.
 3. Copia completo `supabase/migrations/20260718143106_add_social_community_mvp.sql`.
 4. Ejecuta la consulta una sola vez y confirma que termina sin errores.
-5. No recrees ni sustituyas `place_prediction`, las RPC de perfil o las funciones de resolución.
+5. Ejecuta después `supabase/migrations/20260718182915_expose_real_market_comment_counts.sql` una sola vez.
+6. No recrees ni sustituyas `place_prediction`, las RPC de perfil o las funciones de resolución.
 
 La migración crea tablas sociales con RLS, revoca el acceso directo de `anon` y `authenticated` y concede únicamente las RPC necesarias. No contiene usuarios, comentarios, seguidores, reacciones o reportes de ejemplo.
 
@@ -105,7 +112,7 @@ Comprueba también que `public.markets.comments_count` sigue existiendo y que la
 ## 5. Publicación en GitHub Pages
 
 - Sube el contenido completo del ZIP, no archivos sueltos.
-- Confirma que todos los HTML cargan recursos con `v=20260718-community1`.
+- Confirma que los recursos compartidos usan `v=20260718-community1` y que `market-detail.html` carga `styles.css` y `market-detail.js` con `v=20260718-community2`.
 - Espera a que GitHub Pages renueve la caché y abre en incógnito: inicio, comunidad, mercado, perfil, clasificación, predicciones y ambos paneles administrativos.
 - Comprueba escritorio y móvil, especialmente cabecera, pestañas, formularios, spoilers, feed y cola administrativa.
 - Debido a la desincronización histórica, compara árboles antes de integrar; no hagas `reset`, `rebase` o sobrescritura destructiva de `main`.

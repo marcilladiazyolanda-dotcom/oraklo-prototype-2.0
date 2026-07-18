@@ -168,7 +168,7 @@ La personalización fue entregada para ejecutarse manualmente en Supabase. Al re
 
 ### Paso 11: MVP social y comunidad
 
-Implementado en `codex/community-mvp-step-11`; la migración fue aplicada manualmente en Supabase y el frontend se publicó en GitHub Pages el 18 de julio de 2026. Queda completar la matriz de pruebas de humo con cuentas reales:
+Implementado, publicado y aceptado en `codex/community-mvp-step-11` el 18 de julio de 2026:
 
 - Comentarios públicos en mercados abiertos, cerrados o resueltos.
 - Respuestas limitadas a un solo nivel, texto plano de 1 a 500 caracteres, marca de spoiler, edición propia y borrado lógico propio.
@@ -186,10 +186,19 @@ Implementado en `codex/community-mvp-step-11`; la migración fue aplicada manual
 Migración:
 
 - `20260718143106_add_social_community_mvp.sql`
+- `20260718182915_expose_real_market_comment_counts.sql`
 
-Estado en Supabase: **aplicada manualmente por la usuaria el 18 de julio de 2026, sin errores informados por SQL Editor**. Sigue pendiente verificar los tres roles (invitada, cuenta normal y administradora).
+Estado en Supabase: **ambas migraciones aplicadas manualmente por la usuaria el 18 de julio de 2026, sin errores informados por SQL Editor**.
+
+Aceptación real completada con invitada, `@SKINNY.TONI`, una cuenta normal temporal y la administradora: lectura pública, comentario, edición, spoiler, borrado, respuesta de un nivel, rechazo de anidación adicional, seguimiento privado, reacción, silencio, reporte, descarte administrativo y auditoría. La cuenta temporal y todos sus datos de prueba fueron eliminados al terminar; la cuenta y el comentario original de `@SKINNY.TONI` se conservaron.
+
+Las pruebas técnicas aisladas cubrieron además ocultar/restaurar, restringir/levantar la restricción, acceso directo bloqueado a tablas, exclusión de predicciones activas y ausencia de Karma en el feed. La comprobación pública confirmó que el panel administrativo rechaza invitadas.
 
 Después de la primera publicación se corrigió la colocación del debate en la ficha de mercado: en escritorio queda dentro de la columna principal, inmediatamente después de «Resolución», sin esperar a la altura del panel lateral de predicción; en móvil conserva el flujo vertical. La corrección usa la versión de caché `20260718-community2` en `market-detail.html`.
+
+La aceptación detectó que la RPC histórica publicaba `comments_count = 0` aunque el trigger social mantenía el dato real. `20260718182915_expose_real_market_comment_counts.sql` sustituyó ese valor provisional por `markets.comments_count`. Se verificó en Supabase y en GitHub Pages que tabla, listado, detalle y pantalla devuelven el mismo contador real.
+
+Los asesores de Supabase se ejecutaron después del despliegue. Los avisos informativos de tablas sociales con RLS sin políticas son intencionados: `anon` y `authenticated` no tienen permisos directos y toda la API usa RPC cerradas. Los avisos sobre RPC `security definer` también corresponden a la superficie pública/autenticada deliberada y las funciones sensibles comprueban identidad o administración internamente. Los índices sociales aún aparecen como no usados por falta de tráfico suficiente; no eliminarlos por ese aviso temprano. Queda como endurecimiento previo a una beta pública activar la protección de contraseñas filtradas de Supabase Auth.
 
 ## 5. Migraciones y backend del repositorio
 
@@ -202,6 +211,7 @@ Orden actual:
 5. `20260714210500_add_public_predictor_profiles.sql`
 6. `20260715020000_add_profile_customization.sql`
 7. `20260718143106_add_social_community_mvp.sql`
+8. `20260718182915_expose_real_market_comment_counts.sql`
 
 No debe suponerse que toda función antigua del Supabase vivo está versionada aquí. Antes de escribir SQL nuevo, inspeccionar esquema, firmas, políticas, permisos y migraciones existentes.
 
@@ -210,9 +220,9 @@ No debe suponerse que toda función antigua del Supabase vivo está versionada a
 - Paso 9: rangos reales, clasificación y temporadas preparadas — terminado.
 - Paso 10: perfil de usuario como currículum predictivo — terminado.
 - Paso 10B: personalización y menú de cuenta — terminado; su esquema se verificó en Supabase aunque el historial remoto de migraciones no lo refleja de forma fiable.
-- Paso 11: MVP social y comunidad — SQL aplicado y primera versión publicada; pendiente de publicar la corrección visual del debate y validar con cuentas reales.
+- Paso 11: MVP social y comunidad — terminado, desplegado y aceptado con cuentas reales.
 
-Siguiente paso operativo: publicar el paquete con la corrección visual del debate y hacer la matriz de aceptación como invitada, usuaria y administradora.
+Siguiente paso operativo: acordar con la usuaria el siguiente bloque del roadmap. No iniciar automáticamente las ampliaciones sociales posteriores al MVP ni el pulido visual final sin definir y aprobar primero su alcance.
 
 Backlog social que la usuaria quiere retomar después del MVP para dar más contenido a la plataforma:
 
@@ -273,7 +283,7 @@ No implementar sin autorización expresa:
 - Comprobar que todos los recursos locales existen y comparten una versión de caché coherente.
 - Probar sesión invitada y autenticada cuando afecte a Auth/cabecera.
 - Probar permisos normales y administrativos cuando afecte a resolución.
-- Para el Paso 11, completar `STEP_11_ACCEPTANCE_CHECKLIST.md` con invitada, dos cuentas normales y administradora.
+- Para futuras regresiones del Paso 11, reutilizar `STEP_11_ACCEPTANCE_CHECKLIST.md` con invitada, dos cuentas normales y administradora.
 - Confirmar que el feed no devuelve Karma ni predicciones activas y que las listas completas de seguimiento y silencio siguen privadas.
 - Confirmar privacidad y que no aparecen secretos.
 - Confirmar compatibilidad con GitHub Pages.

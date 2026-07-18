@@ -68,7 +68,11 @@ Para activar el Paso 11 hay que ejecutar una sola vez en Supabase, después de l
 
 `supabase/migrations/20260718143106_add_social_community_mvp.sql`
 
-Después se debe comprobar como invitada, cuenta normal y administradora antes de publicar los HTML. Hasta aplicar esa migración, las pantallas muestran un estado comprensible y no inventan actividad.
+Después debe aplicarse la corrección del contador público real:
+
+`supabase/migrations/20260718182915_expose_real_market_comment_counts.sql`
+
+Ambas migraciones fueron aplicadas en producción y el MVP social se validó como invitada, con dos cuentas normales y con administradora el 18 de julio de 2026. La cuenta temporal de aceptación y sus datos se eliminaron al terminar.
 
 La secuencia detallada de activación y pruebas está en `STEP_11_ACCEPTANCE_CHECKLIST.md`.
 
