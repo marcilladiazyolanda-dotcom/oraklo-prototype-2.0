@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Oraklo | Comunidad</title>
+  <meta name="description" content="Feed cronológico de comentarios y predicciones resueltas de la comunidad Oraklo.">
+  <link rel="stylesheet" href="styles.css?v=20260718-community1">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar" aria-label="Cabecera principal">
+      <a class="brand" href="index.html" aria-label="Oraklo inicio">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">Oraklo</span>
+      </a>
+
+      <nav class="detail-nav" aria-label="Navegación de comunidad">
+        <a href="index.html">Explorar mercados</a>
+        <a href="ranking.html">Clasificación</a>
+        <a href="my-predictions.html">Mis predicciones</a>
+        <a href="admin-community.html" data-admin-only hidden>Moderar comunidad</a>
+      </nav>
+
+      <div class="topbar-actions detail-user-state" role="group" aria-label="Estado del usuario">
+        <span class="karma-pill" role="status" aria-label="Karma disponible: 1.000">
+          <span class="karma-symbol" aria-hidden="true">K</span>
+          <strong data-profile-karma>1.000</strong>
+        </span>
+        <span class="user-stat-pill">Prestigio: <strong data-profile-prestige>0</strong></span>
+        <span class="user-stat-pill">Rango: <strong data-profile-rank>Observador</strong></span>
+        <button class="profile-button" type="button" data-auth-open data-auth-state="guest" data-profile-username aria-label="Entrar en Oraklo">Entrar</button>
+        <button class="profile-button" type="button" data-auth-state="user" data-profile-username hidden aria-label="Usuario @Usuario">@Usuario</button>
+        <button class="logout-button" type="button" data-auth-signout data-auth-state="user" hidden>Salir</button>
+      </div>
+    </header>
+
+    <main class="community-page">
+      <section class="page-intro community-intro" aria-labelledby="community-title">
+        <div>
+          <p class="eyebrow">Lecturas compartidas · Actividad real</p>
+          <h1 id="community-title">Comunidad Oraklo</h1>
+          <p class="subtitle">Descubre argumentos, resultados y predictores a los que merece la pena seguir.</p>
+          <p class="supporting-copy">El feed es estrictamente cronológico: no hay algoritmo, tendencias ni actividad simulada.</p>
+        </div>
+        <aside class="community-principles-card" aria-label="Privacidad del feed">
+          <span>Privacidad por diseño</span>
+          <strong>Solo actividad pública</strong>
+          <small>Las predicciones aparecen después de liquidarse. Nunca se publica el Karma disponible ni una predicción activa.</small>
+        </aside>
+      </section>
+
+      <div class="community-layout">
+        <section class="community-feed-panel" aria-labelledby="community-feed-title">
+          <div class="community-feed-heading">
+            <div>
+              <p class="eyebrow">Feed cronológico</p>
+              <h2 id="community-feed-title">Actividad</h2>
+            </div>
+            <div class="community-tabs" role="tablist" aria-label="Tipo de feed">
+              <button type="button" role="tab" data-community-mode="community" aria-selected="true">Comunidad</button>
+              <button type="button" role="tab" data-community-mode="following" aria-selected="false">Siguiendo</button>
+            </div>
+          </div>
+          <p class="community-feed-note" id="community-feed-note">De más reciente a más antiguo.</p>
+          <div id="community-root" class="community-feed" aria-live="polite"></div>
+        </section>
+
+        <aside class="community-sidebar" aria-label="Tu red en Oraklo">
+          <section class="community-sidebar-card">
+            <p class="eyebrow">Tu red</p>
+            <h2>Cuentas que sigues</h2>
+            <p class="community-sidebar-copy">La lista completa es privada. Los demás solo ven contadores agregados.</p>
+            <div id="community-following-root" aria-live="polite"></div>
+          </section>
+
+          <section class="community-sidebar-card community-rules-card">
+            <p class="eyebrow">Convivencia</p>
+            <h2>Lecturas, no ataques</h2>
+            <ul>
+              <li>Argumenta sin acosar ni discriminar.</li>
+              <li>Marca spoilers y reporta de forma responsable.</li>
+              <li>“Buena lectura” no modifica Karma, Prestigio o rango.</li>
+            </ul>
+          </section>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabaseClient.js?v=20260718-community1"></script>
+  <script src="auth.js?v=20260718-community1"></script>
+  <script src="social.js?v=20260718-community1"></script>
+  <script src="community.js?v=20260718-community1"></script>
+</body>
+</html>

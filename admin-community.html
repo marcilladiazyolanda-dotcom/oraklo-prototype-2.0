@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Oraklo | Mis predicciones</title>
-  <meta name="description" content="Predicciones guardadas del usuario en Oraklo.">
+  <title>Oraklo | Moderar comunidad</title>
+  <meta name="description" content="Cola privada de moderación humana de la comunidad Oraklo.">
   <link rel="stylesheet" href="styles.css?v=20260718-community1">
 </head>
 <body>
@@ -15,12 +15,10 @@
         <span class="brand-name">Oraklo</span>
       </a>
 
-      <nav class="detail-nav" aria-label="Navegación de usuario">
-        <a href="index.html">Explorar mercados</a>
+      <nav class="detail-nav" aria-label="Navegación administrativa">
         <a href="community.html">Comunidad</a>
-        <a href="ranking.html">Clasificación</a>
-        <a href="admin-resolution.html" data-admin-only hidden>Resolver mercados</a>
-        <a href="admin-community.html" data-admin-only hidden>Moderar</a>
+        <a href="admin-resolution.html">Resolver mercados</a>
+        <a href="index.html">Explorar mercados</a>
       </nav>
 
       <div class="topbar-actions detail-user-state" role="group" aria-label="Estado del usuario">
@@ -36,31 +34,35 @@
       </div>
     </header>
 
-    <main class="predictions-page">
-      <section class="page-intro predictions-intro" aria-labelledby="predictions-title">
+    <main class="admin-community-page">
+      <section class="page-intro admin-community-intro" aria-labelledby="admin-community-title">
         <div>
-          <p class="eyebrow">Cuenta Oraklo</p>
-          <h1 id="predictions-title">Mis predicciones</h1>
-          <p class="subtitle">Consulta tus predicciones activas y tu historial.</p>
-          <p class="supporting-copy">Predicciones guardadas en Supabase. Sin dinero real.</p>
+          <p class="eyebrow">Administración · Seguridad</p>
+          <h1 id="admin-community-title">Moderar comunidad</h1>
+          <p class="subtitle">Revisa cada reporte con contexto y aplica únicamente la medida necesaria.</p>
+          <p class="supporting-copy">Ocultar, restaurar, restringir o levantar una restricción queda registrado en la auditoría privada.</p>
         </div>
       </section>
 
-      <section class="detail-notices" aria-label="Avisos importantes">
-        <p><strong>Privacidad:</strong> Las predicciones activas son privadas.</p>
-        <p><strong>Karma:</strong> El Karma se descuenta al confirmar. Cuando el mercado se resuelve, Oraklo abona automáticamente el retorno que corresponda.</p>
-        <p><strong>Prestigio:</strong> El Prestigio se actualiza al resolver el mercado y nunca baja de 0.</p>
-        <p><strong>Anulación:</strong> Si un mercado se anula, se devuelve íntegramente el Karma arriesgado y no cambia el Prestigio.</p>
-        <p><strong>Prototipo:</strong> Sin dinero real, sin compra de Karma y sin Modo Real.</p>
+      <section class="detail-notices admin-community-notices" aria-label="Principios de moderación">
+        <p><strong>Revisión humana:</strong> no hay sanciones automáticas ni moderación por IA.</p>
+        <p><strong>Proporcionalidad:</strong> una restricción bloquea nuevas acciones sociales, pero no impide leer, silenciar o borrar contenido propio.</p>
+        <p><strong>Privacidad:</strong> la identidad de quien reporta solo aparece en esta cola administrativa.</p>
       </section>
 
-      <section id="my-predictions-root" class="predictions-root" aria-live="polite"></section>
+      <section id="admin-community-root" class="admin-community-root" aria-live="polite">
+        <div class="admin-loading-card">
+          <p class="eyebrow">Preparando moderación</p>
+          <h2>Comprobando tus permisos...</h2>
+        </div>
+      </section>
     </main>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabaseClient.js?v=20260718-community1"></script>
   <script src="auth.js?v=20260718-community1"></script>
-  <script src="my-predictions.js?v=20260718-community1"></script>
+  <script src="social.js?v=20260718-community1"></script>
+  <script src="admin-community.js?v=20260718-community1"></script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 # Oraklo · contexto de relevo para un nuevo chat Work
 
-Última actualización del contexto: 15 de julio de 2026.
+Última actualización del contexto: 18 de julio de 2026.
 
 Este documento permite continuar el proyecto en un chat nuevo sin depender del transcript anterior. Debe leerse junto con `AGENTS.md` y `README.md` antes de proponer o modificar nada.
 
@@ -34,7 +34,10 @@ Archivos principales:
 - `my-predictions.html` / `my-predictions.js`: predicciones activas y liquidadas del usuario.
 - `ranking.html` / `ranking.js`: rangos y clasificaciones.
 - `profile.html` / `profile.js`: currículum predictivo y personalización.
+- `community.html` / `community.js`: feed cronológico global y de cuentas seguidas.
+- `market-comments.js` / `social.js`: debates y utilidades sociales comunes.
 - `admin-resolution.html` / `admin-resolution.js`: revisión humana de resoluciones.
+- `admin-community.html` / `admin-community.js`: reportes y moderación social humana.
 - `auth.js`: sesión, perfil global y menú desplegable de cuenta.
 - `supabaseClient.js`: cliente, mapeos públicos y tiempo real de cierre.
 - `supabase/functions/`: análisis y aprobación de resoluciones.
@@ -42,7 +45,7 @@ Archivos principales:
 
 ## 3. Estado Git en el momento del relevo
 
-Rama local de trabajo: `codex/profile-redesign-customization`.
+Rama local de trabajo actual: `codex/community-mvp-step-11`.
 
 Commits funcionales de referencia:
 
@@ -57,6 +60,13 @@ Observación realizada el 15 de julio de 2026:
 - La rama local contenía todavía cambios más nuevos que `origin/main` en `auth.js`, `styles.css`, el resto de HTML y documentación.
 
 Este dato puede quedar obsoleto. Al iniciar el chat nuevo hay que ejecutar primero comprobaciones de estado y comparar árboles. No hacer `reset`, `checkout` destructivo ni asumir que `main` local está actualizado. La copia de trabajo local es la fuente más completa hasta demostrar lo contrario.
+
+Nueva comprobación realizada el 18 de julio de 2026:
+
+- El `main` público de GitHub seguía en `f341f5f` (`CONTEXTO/AGENTE`).
+- El árbol funcional que sirvió de base local coincidía con el árbol público, pero los historiales continuaban siendo distintos por las subidas manuales anteriores.
+- El Paso 11 se implementó en una rama nueva para no reescribir, rebasar ni mezclar ese historial desincronizado.
+- No hacer `reset`, `rebase` o `pull` destructivo ni asumir que el `origin/main` local representa el `main` público. Comparar árboles y commits antes de una futura sincronización.
 
 ## 4. Funcionalidades terminadas y comprobadas
 
@@ -147,7 +157,7 @@ Migración: `20260714145832_add_real_ranks_and_dormant_seasons.sql`.
   - Resolución solo para administradora.
   - Cierre de sesión.
 - El menú se mantiene al hacer scroll, se recoloca bajo el botón y se cierra con `X`, fuera o `Esc`.
-- Los recursos HTML usan la versión de caché `20260715-account3` en la rama local completa.
+- Los recursos HTML usaban la versión de caché `20260715-account3` al cerrar el Paso 10; el Paso 11 coordina todos los recursos con `20260718-community1`.
 
 Migraciones:
 
@@ -155,6 +165,29 @@ Migraciones:
 - `20260715020000_add_profile_customization.sql`
 
 La personalización fue entregada para ejecutarse manualmente en Supabase. Al retomar, verificar que `get_public_predictor_customization` y `update_my_public_profile` existen o que guardar cambios funciona antes de asumir su estado vivo.
+
+### Paso 11: MVP social y comunidad
+
+Implementado localmente en `codex/community-mvp-step-11`; requiere aplicar la migración nueva en Supabase y ejecutar pruebas de humo con cuentas reales antes de considerarlo desplegado:
+
+- Comentarios públicos en mercados abiertos, cerrados o resueltos.
+- Respuestas limitadas a un solo nivel, texto plano de 1 a 500 caracteres, marca de spoiler, edición propia y borrado lógico propio.
+- Seguimiento de perfiles con contadores públicos reales. La lista completa de cuentas seguidas y los silencios son privados.
+- `community.html` con feed `Comunidad` y `Siguiendo`, ambos estrictamente cronológicos y sin algoritmo.
+- El feed solo publica comentarios visibles y predicciones ya liquidadas; no devuelve Karma ni predicciones activas.
+- Una reacción positiva, `Buena lectura`, para contenido de otras personas. No afecta Karma, Prestigio, rango o clasificación.
+- Reportes privados de comentarios y perfiles, silencios personales y restricciones sociales temporales.
+- `admin-community.html` para revisión humana: descartar, ocultar, restringir, ocultar y restringir, restaurar o levantar restricciones.
+- Auditoría privada de todas las decisiones administrativas.
+- Invitados con lectura pública; autenticación obligatoria para cualquier escritura social.
+- Tablas con RLS y sin permisos directos para `anon` o `authenticated`; toda la superficie usa RPC con campos cerrados, permisos mínimos y comprobaciones de identidad en el servidor.
+- Recursos HTML coordinados con versión de caché `20260718-community1`.
+
+Migración:
+
+- `20260718143106_add_social_community_mvp.sql`
+
+Estado en Supabase al preparar esta entrega: **no aplicada**. La usuaria debe ejecutarla manualmente y verificar los tres roles (invitada, cuenta normal y administradora). No se ha modificado el proyecto Supabase vivo desde este paso.
 
 ## 5. Migraciones y backend del repositorio
 
@@ -166,6 +199,7 @@ Orden actual:
 4. `20260714164629_repair_unsettled_market_status.sql`
 5. `20260714210500_add_public_predictor_profiles.sql`
 6. `20260715020000_add_profile_customization.sql`
+7. `20260718143106_add_social_community_mvp.sql`
 
 No debe suponerse que toda función antigua del Supabase vivo está versionada aquí. Antes de escribir SQL nuevo, inspeccionar esquema, firmas, políticas, permisos y migraciones existentes.
 
@@ -173,10 +207,26 @@ No debe suponerse que toda función antigua del Supabase vivo está versionada a
 
 - Paso 9: rangos reales, clasificación y temporadas preparadas — terminado.
 - Paso 10: perfil de usuario como currículum predictivo — terminado.
-- Paso 10B: personalización y menú de cuenta — terminado localmente; verificar sincronización remota.
-- Paso 11: funciones sociales y comunidad — siguiente gran bloque previsto.
+- Paso 10B: personalización y menú de cuenta — terminado; su esquema se verificó en Supabase aunque el historial remoto de migraciones no lo refleja de forma fiable.
+- Paso 11: MVP social y comunidad — implementado localmente; pendiente de aplicar SQL, subir el paquete completo y validar con cuentas reales.
 
-El Paso 11 se definió de forma amplia como comentarios, seguir usuarios, feed, reacciones, moderación y reportes. No implementar todo de golpe ni asumir el orden: primero hay que acordar con la usuaria un MVP social, sus reglas de privacidad y moderación, y criterios de aceptación.
+Siguiente paso operativo: aplicar `20260718143106_add_social_community_mvp.sql` en Supabase, hacer la matriz de aceptación como invitada, usuaria y administradora y, si todo pasa, subir el ZIP completo a GitHub sin reconstruir el historial a ciegas.
+
+Backlog social que la usuaria quiere retomar después del MVP para dar más contenido a la plataforma:
+
+- Mensajes directos o chat.
+- Notificaciones por email o push.
+- Menciones, hashtags y tendencias.
+- Imágenes, vídeo, GIF y archivos adjuntos.
+- Grupos o comunidades privadas.
+- Feed algorítmico.
+- Cuentas privadas y solicitudes de seguimiento.
+- Hilos con más de un nivel.
+- Varias reacciones, votos negativos o dislikes.
+- Recompensas sociales de Karma o Prestigio.
+- Moderación o sanciones automatizadas con IA.
+
+Este backlog está recordado, pero no debe implementarse sin definir y aprobar cada ampliación. Las restricciones actuales de privacidad, datos reales, revisión humana y ausencia de dinero real siguen vigentes.
 
 ## 7. Restricciones vigentes
 
@@ -221,6 +271,8 @@ No implementar sin autorización expresa:
 - Comprobar que todos los recursos locales existen y comparten una versión de caché coherente.
 - Probar sesión invitada y autenticada cuando afecte a Auth/cabecera.
 - Probar permisos normales y administrativos cuando afecte a resolución.
+- Para el Paso 11, completar `STEP_11_ACCEPTANCE_CHECKLIST.md` con invitada, dos cuentas normales y administradora.
+- Confirmar que el feed no devuelve Karma ni predicciones activas y que las listas completas de seguimiento y silencio siguen privadas.
 - Confirmar privacidad y que no aparecen secretos.
 - Confirmar compatibilidad con GitHub Pages.
 - Crear commit claro y ZIP completo validado si la usuaria va a subirlo manualmente.
@@ -228,4 +280,3 @@ No implementar sin autorización expresa:
 ## 12. Cómo comenzar el nuevo chat
 
 El primer mensaje recomendado está en la sección final de la respuesta que creó este documento. El nuevo agente debe leer primero estos archivos, inspeccionar Git y resumir el estado antes de editar.
-

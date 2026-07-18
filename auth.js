@@ -152,6 +152,10 @@ function renderUserMenu() {
           <span aria-hidden="true">◎</span>
           <span><strong>Mis predicciones</strong><small>Activas, resueltas y balance</small></span>
         </a>
+        <a href="community.html">
+          <span aria-hidden="true">◌</span>
+          <span><strong>Comunidad</strong><small>Feed cronológico y cuentas que sigues</small></span>
+        </a>
         <a href="ranking.html">
           <span aria-hidden="true">⌁</span>
           <span><strong>Clasificación</strong><small>Posición global, rangos y temporada</small></span>
@@ -160,6 +164,10 @@ function renderUserMenu() {
           <a href="admin-resolution.html">
             <span aria-hidden="true">✓</span>
             <span><strong>Resolver mercados</strong><small>Análisis con IA y revisión administrativa</small></span>
+          </a>
+          <a href="admin-community.html">
+            <span aria-hidden="true">⚑</span>
+            <span><strong>Moderar comunidad</strong><small>Reportes, contenido oculto y restricciones</small></span>
           </a>
         ` : ""}
       </nav>
@@ -179,6 +187,7 @@ function renderUserMenu() {
         <div>
           <p>Tu saldo de Karma y tus predicciones activas son privados.</p>
           <p>Solo se publican tu perfil y las predicciones de mercados ya resueltos.</p>
+          <p>Tu lista completa de cuentas seguidas y tus silencios son privados.</p>
         </div>
       </details>
     </section>

@@ -6,6 +6,7 @@ const fallbackUser = window.ORAKLO_DEMO_USER || {
 };
 
 const detailRoot = document.querySelector("#market-detail-root");
+const detailCommentsSection = document.querySelector("#market-comments-section");
 const predictionModal = document.querySelector("#prediction-modal");
 const predictionModalCheck = document.querySelector("#prediction-modal-check");
 const predictionModalEyebrow = document.querySelector("#prediction-modal .eyebrow");
@@ -48,6 +49,7 @@ let currentMarket = null;
 let detailClockTimer = null;
 let detailCloseRefreshRequested = false;
 let currentMarketUsesSupabase = false;
+let detailCommentsAnchorHandled = false;
 
 function formatNumber(value) {
   return new Intl.NumberFormat("es-ES").format(Number(value) || 0);
@@ -318,6 +320,7 @@ function createResolutionMarkup(market) {
 }
 
 function renderLoadingState() {
+  if (detailCommentsSection) detailCommentsSection.hidden = true;
   detailRoot.innerHTML = `
     <section class="not-found-card loading-detail-card">
       <p class="eyebrow">Detalle de mercado</p>
@@ -330,6 +333,7 @@ function renderLoadingState() {
 function renderNotFound() {
   currentMarket = null;
   stopDetailClock();
+  if (detailCommentsSection) detailCommentsSection.hidden = true;
   detailRoot.innerHTML = `
     <section class="not-found-card">
       <p class="eyebrow">Detalle de mercado</p>
@@ -342,6 +346,15 @@ function renderNotFound() {
 
 function renderDetail(market) {
   currentMarket = market;
+  if (detailCommentsSection) {
+    detailCommentsSection.hidden = false;
+    if (window.location.hash === "#market-comments-section" && !detailCommentsAnchorHandled) {
+      detailCommentsAnchorHandled = true;
+      window.requestAnimationFrame(() => {
+        detailCommentsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+  }
   const displayUser = getDisplayUser();
   const maxKarma = getMaxKarma();
   const hasEnoughKarma = maxKarma >= predictionRules.minKarma;
@@ -426,7 +439,7 @@ function renderDetail(market) {
           <div class="detail-stat-grid">
             <div class="stat"><span>Karma total</span><strong>${formatNumber(market.karmaTotal)}</strong></div>
             <div class="stat"><span>Participantes</span><strong>${formatNumber(market.participantes)}</strong></div>
-            <div class="stat"><span>Comentarios</span><strong>${formatNumber(market.comentarios)}</strong></div>
+            <div class="stat"><span>Comentarios</span><strong data-detail-comment-count>${formatNumber(market.comentarios)}</strong></div>
             <div class="stat detail-close-stat">
               <span>Cierre</span>
               <strong data-detail-market-countdown>${timing.label}</strong>
@@ -440,12 +453,6 @@ function renderDetail(market) {
           ${createResolutionMarkup(market)}
         </article>
 
-        <section class="detail-card comments-card" aria-labelledby="comments-title">
-          <h2 id="comments-title">Debate del mercado</h2>
-          <p class="comments-placeholder">Los comentarios reales se activarán más adelante.</p>
-          <label class="sr-only" for="comment-placeholder">Comentarios</label>
-          <input id="comment-placeholder" class="comment-input" type="text" placeholder="Comentarios reales próximamente." disabled>
-        </section>
       </section>
     </div>
   `;

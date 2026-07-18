@@ -39,6 +39,11 @@ const predictorProfileState = {
   historyLoadError: "",
   optionalDataWarning: "",
   customizationAvailable: true,
+  socialAvailable: false,
+  social: null,
+  socialBusy: "",
+  socialStatusMessage: "",
+  socialStatusTone: "info",
   activeTab: "summary",
   profileSavedMessage: ""
 };
@@ -276,6 +281,135 @@ function isViewingOwnProfile(profile = predictorProfileState.profile) {
     profile?.is_own_profile
     || (authState?.user?.id && authState.user.id === profile?.id)
   );
+}
+
+function createProfileSocialMarkup(profile, isOwnProfile) {
+  if (!predictorProfileState.socialAvailable || !predictorProfileState.social) {
+    return `
+      <div class="profile-social-unavailable">
+        <span>Comunidad</span>
+        <small>Los datos sociales estarán disponibles al activar el Paso 11 en Supabase.</small>
+      </div>
+    `;
+  }
+
+  const social = predictorProfileState.social;
+  const followBusy = predictorProfileState.socialBusy === "follow";
+  const muteBusy = predictorProfileState.socialBusy === "mute";
+  const followDisabled = followBusy || (social.viewer_has_muted && !social.viewer_is_following);
+
+  return `
+    <dl class="profile-social-counts" aria-label="Comunidad del perfil">
+      <div><dt>Seguidores</dt><dd>${formatProfileNumber(social.follower_count)}</dd></div>
+      <div><dt>Siguiendo</dt><dd>${formatProfileNumber(social.following_count)}</dd></div>
+    </dl>
+    ${isOwnProfile ? `
+      <a class="secondary-button profile-community-link" href="community.html">Abrir mi comunidad</a>
+    ` : `
+      <div class="profile-social-actions">
+        <button class="${social.viewer_is_following ? "secondary-button" : "primary-button"}" id="profile-follow-button" type="button"
+          aria-pressed="${Boolean(social.viewer_is_following)}"${followDisabled ? " disabled" : ""}
+          title="${social.viewer_has_muted ? "Deja de silenciar este perfil para poder seguirlo" : ""}">
+          ${followBusy ? "Actualizando..." : social.viewer_is_following ? "Siguiendo" : "Seguir"}
+        </button>
+        <button class="secondary-button" id="profile-mute-button" type="button" aria-pressed="${Boolean(social.viewer_has_muted)}"${muteBusy ? " disabled" : ""}>
+          ${muteBusy ? "Actualizando..." : social.viewer_has_muted ? "Dejar de silenciar" : "Silenciar"}
+        </button>
+        <button class="profile-report-button" id="profile-report-button" type="button"${social.viewer_has_open_report ? " disabled" : ""}>
+          ${social.viewer_has_open_report ? "Perfil reportado" : "Reportar perfil"}
+        </button>
+      </div>
+    `}
+    ${predictorProfileState.socialStatusMessage ? `
+      <p class="social-status social-status-${escapeProfileHtml(predictorProfileState.socialStatusTone)}">${escapeProfileHtml(predictorProfileState.socialStatusMessage)}</p>
+    ` : ""}
+  `;
+}
+
+async function refreshProfileSocialData({ render = true } = {}) {
+  if (!profileClient || !predictorProfileState.targetId || !window.orakloSocial) return;
+
+  try {
+    const data = await window.orakloSocial.rpc("get_public_social_profile", {
+      profile_id_input: predictorProfileState.targetId
+    });
+    predictorProfileState.social = window.orakloSocial.normalizeRow(data);
+    predictorProfileState.socialAvailable = Boolean(predictorProfileState.social);
+  } catch (_error) {
+    predictorProfileState.social = null;
+    predictorProfileState.socialAvailable = false;
+  }
+
+  if (render && predictorProfileState.profile) renderPredictorProfile();
+}
+
+async function toggleProfileFollowing() {
+  const auth = await window.orakloSocial?.requireAuth("Inicia sesión para seguir este perfil.");
+  if (!auth || !predictorProfileState.social || predictorProfileState.socialBusy) return;
+
+  predictorProfileState.socialBusy = "follow";
+  predictorProfileState.socialStatusMessage = "";
+  renderPredictorProfile();
+  try {
+    const result = window.orakloSocial.normalizeRow(await window.orakloSocial.rpc("set_profile_following", {
+      profile_id_input: predictorProfileState.targetId,
+      following_input: !predictorProfileState.social.viewer_is_following
+    }));
+    predictorProfileState.social.viewer_is_following = Boolean(result?.is_following);
+    predictorProfileState.social.follower_count = Number(result?.follower_count) || 0;
+    predictorProfileState.socialStatusMessage = result?.is_following
+      ? "Ahora sigues este perfil. Su actividad pública aparecerá en tu feed."
+      : "Has dejado de seguir este perfil.";
+    predictorProfileState.socialStatusTone = "success";
+  } catch (error) {
+    predictorProfileState.socialStatusMessage = window.orakloSocial.getErrorMessage(error);
+    predictorProfileState.socialStatusTone = "error";
+  } finally {
+    predictorProfileState.socialBusy = "";
+    renderPredictorProfile();
+  }
+}
+
+async function toggleProfileMuted() {
+  const auth = await window.orakloSocial?.requireAuth("Inicia sesión para silenciar este perfil.");
+  if (!auth || !predictorProfileState.social || predictorProfileState.socialBusy) return;
+  const nextMuted = !predictorProfileState.social.viewer_has_muted;
+
+  if (nextMuted && !window.confirm("¿Silenciar este perfil? Sus comentarios y actividad dejarán de aparecer para ti, y también dejarás de seguirlo.")) {
+    return;
+  }
+
+  predictorProfileState.socialBusy = "mute";
+  predictorProfileState.socialStatusMessage = "";
+  renderPredictorProfile();
+  try {
+    const result = window.orakloSocial.normalizeRow(await window.orakloSocial.rpc("set_profile_muted", {
+      profile_id_input: predictorProfileState.targetId,
+      muted_input: nextMuted
+    }));
+    predictorProfileState.social.viewer_has_muted = Boolean(result?.is_muted);
+    if (result?.is_muted) predictorProfileState.social.viewer_is_following = false;
+    predictorProfileState.socialStatusMessage = result?.is_muted
+      ? "Perfil silenciado. Su actividad ya no aparecerá para ti."
+      : "Has dejado de silenciar este perfil.";
+    predictorProfileState.socialStatusTone = "success";
+  } catch (error) {
+    predictorProfileState.socialStatusMessage = window.orakloSocial.getErrorMessage(error);
+    predictorProfileState.socialStatusTone = "error";
+  } finally {
+    predictorProfileState.socialBusy = "";
+    await refreshProfileSocialData({ render: false });
+    renderPredictorProfile();
+  }
+}
+
+function reportPredictorProfile() {
+  window.orakloSocial?.openReport({
+    targetType: "profile",
+    targetId: predictorProfileState.targetId,
+    targetLabel: predictorProfileState.profile?.username || "Perfil de Oraklo",
+    trigger: document.querySelector("#profile-report-button")
+  });
 }
 
 function createProfileEditorMarkup(profile) {
@@ -611,6 +745,9 @@ function renderPredictorProfile() {
       </div>
       <div class="predictor-hero-side">
         ${isOwnProfile ? '<button class="secondary-button profile-edit-button" id="open-profile-editor" type="button">Personalizar perfil</button>' : ""}
+        <div class="profile-social-panel">
+          ${createProfileSocialMarkup(profile, isOwnProfile)}
+        </div>
         <aside class="predictor-rank-card">
           <span>Rango de Prestigio</span>
           <div class="predictor-rank-mark" aria-hidden="true">${escapeProfileHtml(String(profile.rank || "O").slice(0, 1))}</div>
@@ -728,6 +865,9 @@ function renderPredictorProfile() {
     button.addEventListener("click", () => setProfileTab(button.dataset.profileTab));
   });
   document.querySelector("#open-profile-editor")?.addEventListener("click", openProfileEditor);
+  document.querySelector("#profile-follow-button")?.addEventListener("click", toggleProfileFollowing);
+  document.querySelector("#profile-mute-button")?.addEventListener("click", toggleProfileMuted);
+  document.querySelector("#profile-report-button")?.addEventListener("click", reportPredictorProfile);
   document.querySelector("#profile-editor-close")?.addEventListener("click", closeProfileEditor);
   document.querySelector("#profile-editor-cancel")?.addEventListener("click", closeProfileEditor);
   document.querySelector("#profile-editor-form")?.addEventListener("submit", handleProfileEditorSubmit);
@@ -849,7 +989,7 @@ async function loadPredictorProfile() {
   predictorProfileState.optionalDataWarning = "";
   predictorProfileState.activeTab = getRequestedProfileTab();
 
-  const [profileResult, specialtiesResult, historyResult, customizationResult] = await Promise.all([
+  const [profileResult, specialtiesResult, historyResult, customizationResult, socialResult] = await Promise.all([
     Promise.resolve(
       profileClient.rpc("get_public_predictor_profile", { profile_id_input: targetId })
     ).catch((error) => ({ data: null, error })),
@@ -859,6 +999,9 @@ async function loadPredictorProfile() {
     fetchProfileHistory().catch((error) => ({ loadError: error })),
     Promise.resolve(
       profileClient.rpc("get_public_predictor_customization", { profile_id_input: targetId })
+    ).catch((error) => ({ data: null, error })),
+    Promise.resolve(
+      profileClient.rpc("get_public_social_profile", { profile_id_input: targetId })
     ).catch((error) => ({ data: null, error }))
   ]);
 
@@ -886,6 +1029,10 @@ async function loadPredictorProfile() {
     : normalizeProfileRow(customizationResult?.data);
 
   predictorProfileState.customizationAvailable = !customizationResult?.error;
+  predictorProfileState.socialAvailable = !socialResult?.error && Boolean(normalizeProfileRow(socialResult?.data));
+  predictorProfileState.social = predictorProfileState.socialAvailable
+    ? normalizeProfileRow(socialResult?.data)
+    : null;
   predictorProfileState.profile = {
     ...profile,
     bio: customization?.bio || "",
@@ -922,6 +1069,25 @@ window.addEventListener("hashchange", () => {
   if (predictorProfileState.profile) {
     setProfileTab(getRequestedProfileTab(), false);
   }
+});
+
+window.addEventListener("oraklo:social-report-created", (event) => {
+  if (
+    event.detail?.targetType !== "profile"
+    || event.detail?.targetId !== predictorProfileState.targetId
+    || !predictorProfileState.social
+  ) return;
+
+  predictorProfileState.social.viewer_has_open_report = true;
+  predictorProfileState.socialStatusMessage = "Reporte enviado. Moderación lo revisará de forma privada.";
+  predictorProfileState.socialStatusTone = "success";
+  renderPredictorProfile();
+});
+
+window.orakloAuth?.onChange?.((auth) => {
+  if (!auth.ready || !predictorProfileState.profile) return;
+  predictorProfileState.socialStatusMessage = "";
+  refreshProfileSocialData();
 });
 
 loadPredictorProfile().catch(() => {
