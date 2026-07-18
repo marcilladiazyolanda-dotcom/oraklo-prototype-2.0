@@ -168,7 +168,7 @@ La personalización fue entregada para ejecutarse manualmente en Supabase. Al re
 
 ### Paso 11: MVP social y comunidad
 
-Implementado localmente en `codex/community-mvp-step-11`; requiere aplicar la migración nueva en Supabase y ejecutar pruebas de humo con cuentas reales antes de considerarlo desplegado:
+Implementado en `codex/community-mvp-step-11`; la migración fue aplicada manualmente en Supabase y el frontend se publicó en GitHub Pages el 18 de julio de 2026. Queda completar la matriz de pruebas de humo con cuentas reales:
 
 - Comentarios públicos en mercados abiertos, cerrados o resueltos.
 - Respuestas limitadas a un solo nivel, texto plano de 1 a 500 caracteres, marca de spoiler, edición propia y borrado lógico propio.
@@ -187,7 +187,9 @@ Migración:
 
 - `20260718143106_add_social_community_mvp.sql`
 
-Estado en Supabase al preparar esta entrega: **no aplicada**. La usuaria debe ejecutarla manualmente y verificar los tres roles (invitada, cuenta normal y administradora). No se ha modificado el proyecto Supabase vivo desde este paso.
+Estado en Supabase: **aplicada manualmente por la usuaria el 18 de julio de 2026, sin errores informados por SQL Editor**. Sigue pendiente verificar los tres roles (invitada, cuenta normal y administradora).
+
+Después de la primera publicación se corrigió la colocación del debate en la ficha de mercado: en escritorio queda dentro de la columna principal, inmediatamente después de «Resolución», sin esperar a la altura del panel lateral de predicción; en móvil conserva el flujo vertical. La corrección usa la versión de caché `20260718-community2` en `market-detail.html`.
 
 ## 5. Migraciones y backend del repositorio
 
@@ -208,9 +210,9 @@ No debe suponerse que toda función antigua del Supabase vivo está versionada a
 - Paso 9: rangos reales, clasificación y temporadas preparadas — terminado.
 - Paso 10: perfil de usuario como currículum predictivo — terminado.
 - Paso 10B: personalización y menú de cuenta — terminado; su esquema se verificó en Supabase aunque el historial remoto de migraciones no lo refleja de forma fiable.
-- Paso 11: MVP social y comunidad — implementado localmente; pendiente de aplicar SQL, subir el paquete completo y validar con cuentas reales.
+- Paso 11: MVP social y comunidad — SQL aplicado y primera versión publicada; pendiente de publicar la corrección visual del debate y validar con cuentas reales.
 
-Siguiente paso operativo: aplicar `20260718143106_add_social_community_mvp.sql` en Supabase, hacer la matriz de aceptación como invitada, usuaria y administradora y, si todo pasa, subir el ZIP completo a GitHub sin reconstruir el historial a ciegas.
+Siguiente paso operativo: publicar el paquete con la corrección visual del debate y hacer la matriz de aceptación como invitada, usuaria y administradora.
 
 Backlog social que la usuaria quiere retomar después del MVP para dar más contenido a la plataforma:
 

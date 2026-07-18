@@ -457,6 +457,11 @@ function renderDetail(market) {
     </div>
   `;
 
+  const detailMain = detailRoot.querySelector(".detail-main");
+  if (detailMain && detailCommentsSection) {
+    detailMain.append(detailCommentsSection);
+  }
+
   bindDetailEvents(market);
   renderEstimate(market);
   updateDetailClock();
